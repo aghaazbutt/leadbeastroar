@@ -102,6 +102,9 @@ async def _ingest_csv(path: Path, campaign_name: str) -> None:
                     "region": rec.region,
                     "country": rec.country,
                     "category": rec.category,
+                    "latitude": str(rec.latitude) if rec.latitude is not None else None,
+                    "longitude": str(rec.longitude) if rec.longitude is not None else None,
+                    "employee_count_est": rec.employee_count_est,
                 },
             )
             session.add(sr)

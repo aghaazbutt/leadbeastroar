@@ -1,21 +1,21 @@
-name,website,phone,email,address,city,region,country,category
-Hartwell Heating and Air,https://hartwellhvac.example,+1-555-0101,info@hartwellhvac.example,123 Oak St,Austin,TX,US,HVAC
-Blue Ridge Plumbing,http://blueridgeplumb.example,+1-555-0102,,55 Pine Ln,Denver,CO,US,Plumbing
-Sawmill Coffee Co,sawmillcoffee.example,+1-555-0103,hi@sawmillcoffee.example,8 Market St,Portland,OR,US,Cafe
-Northside Dental Clinic,https://northsidedental.example,+1-555-0104,,210 Main Rd,Seattle,WA,US,Dental
-Peak Fitness Studio,http://peakfit.example,+1-555-0105,bookings@peakfit.example,77 Hilltop,Boulder,CO,US,Gym
-Harbor Auto Repair,,+1-555-0106,,41 Dock St,Boston,MA,US,Auto
-Little Owl Bakery,https://littleowl.example,+1-555-0107,orders@littleowl.example,15 Elm Ave,Nashville,TN,US,Bakery
-Cascade Plumbing Pros,,+1-555-0108,,100 River Rd,Portland,OR,US,Plumbing
-Summit Legal,https://summitlegal.example,+1-555-0109,,55 Capitol,Sacramento,CA,US,Law
-Riverfront Pediatrics,http://riverfrontpeds.example,+1-555-0110,contact@riverfrontpeds.example,8 Water St,Minneapolis,MN,US,Medical
-Oakleaf Landscaping,oakleaflawn.example,+1-555-0111,,12 Grove Rd,Charlotte,NC,US,Landscaping
-Downtown Dry Cleaners,,+1-555-0112,,900 Center St,Phoenix,AZ,US,Services
-Crestline Electric,https://crestlineelectric.example,+1-555-0113,,66 Highland Rd,Salt Lake City,UT,US,Electrical
-Blue Harbor Insurance,http://blueharborins.example,+1-555-0114,sales@blueharborins.example,41 Shore Blvd,San Diego,CA,US,Insurance
-Maple Street Yoga,maplestreetyoga.example,+1-555-0115,hello@maplestreetyoga.example,5 Maple St,Montpelier,VT,US,Fitness
-Great Lakes Window Co,https://glwindow.example,+1-555-0116,,19 Shore Dr,Milwaukee,WI,US,Home Services
-Amber Ridge Winery,http://amberridge.example,+1-555-0117,tours@amberridge.example,2010 Vine Rd,Napa,CA,US,Food & Drink
-Crosswinds Barbers,,+1-555-0118,,333 Main St,Tulsa,OK,US,Personal Care
-Pinewood Veterinary,https://pinewoodvet.example,+1-555-0119,clinic@pinewoodvet.example,88 Birch Ln,Raleigh,NC,US,Veterinary
-Harvest Moon Flowers,,+1-555-0120,,7 Market Sq,Richmond,VA,US,Retail
+name,website,phone,email,address,city,region,country,category,latitude,longitude
+Hartwell Heating and Air,https://hartwellhvac.example,+1-555-0101,info@hartwellhvac.example,123 Oak St,Austin,TX,US,HVAC,30.267153,-97.743057
+Blue Ridge Plumbing,http://blueridgeplumb.example,+1-555-0102,,55 Pine Ln,Denver,CO,US,Plumbing,39.739235,-104.990250
+Sawmill Coffee Co,sawmillcoffee.example,+1-555-0103,hi@sawmillcoffee.example,8 Market St,Portland,OR,US,Cafe,45.515232,-122.678448
+Northside Dental Clinic,https://northsidedental.example,+1-555-0104,,210 Main Rd,Seattle,WA,US,Dental,47.606209,-122.332069
+Peak Fitness Studio,http://peakfit.example,+1-555-0105,bookings@peakfit.example,77 Hilltop,Boulder,CO,US,Gym,40.014986,-105.270546
+Harbor Auto Repair,,+1-555-0106,,41 Dock St,Boston,MA,US,Auto,42.360081,-71.058884
+Little Owl Bakery,https://littleowl.example,+1-555-0107,orders@littleowl.example,15 Elm Ave,Nashville,TN,US,Bakery,36.162663,-86.781601
+Cascade Plumbing Pros,,+1-555-0108,,100 River Rd,Portland,OR,US,Plumbing,45.523064,-122.676483
+Summit Legal,https://summitlegal.example,+1-555-0109,,55 Capitol,Sacramento,CA,US,Law,38.581572,-121.494400
+Riverfront Pediatrics,http://riverfrontpeds.example,+1-555-0110,contact@riverfrontpeds.example,8 Water St,Minneapolis,MN,US,Medical,44.977753,-93.265015
+Oakleaf Landscaping,oakleaflawn.example,+1-555-0111,,12 Grove Rd,Charlotte,NC,US,Landscaping,35.227085,-80.843124
+Downtown Dry Cleaners,,+1-555-0112,,900 Center St,Phoenix,AZ,US,Services,33.448376,-112.074036
+Crestline Electric,https://crestlineelectric.example,+1-555-0113,,66 Highland Rd,Salt Lake City,UT,US,Electrical,40.760780,-111.891045
+Blue Harbor Insurance,http://blueharborins.example,+1-555-0114,sales@blueharborins.example,41 Shore Blvd,San Diego,CA,US,Insurance,32.715736,-117.161087
+Maple Street Yoga,maplestreetyoga.example,+1-555-0115,hello@maplestreetyoga.example,5 Maple St,Montpelier,VT,US,Fitness,44.260059,-72.575386
+Great Lakes Window Co,https://glwindow.example,+1-555-0116,,19 Shore Dr,Milwaukee,WI,US,Home Services,43.038902,-87.906471
+Amber Ridge Winery,http://amberridge.example,+1-555-0117,tours@amberridge.example,2010 Vine Rd,Napa,CA,US,Food & Drink,38.297539,-122.286865
+Crosswinds Barbers,,+1-555-0118,,333 Main St,Tulsa,OK,US,Personal Care,36.153980,-95.992775
+Pinewood Veterinary,https://pinewoodvet.example,+1-555-0119,clinic@pinewoodvet.example,88 Birch Ln,Raleigh,NC,US,Veterinary,35.779591,-78.638176
+Harvest Moon Flowers,,+1-555-0120,,7 Market Sq,Richmond,VA,US,Retail,37.540726,-77.436050

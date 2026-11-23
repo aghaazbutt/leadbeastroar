@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -120,6 +121,9 @@ def resolve_business(session: Session, *, source_record_id: uuid.UUID) -> uuid.U
             region=rec.raw.get("region") or None,
             country=rec.raw.get("country") or None,
             category=rec.raw.get("category") or None,
+            latitude=_as_decimal(rec.raw.get("latitude")),
+            longitude=_as_decimal(rec.raw.get("longitude")),
+            employee_count_est=_as_int(rec.raw.get("employee_count_est")),
         )
         session.add(biz)
         session.flush()
@@ -132,6 +136,24 @@ def resolve_business(session: Session, *, source_record_id: uuid.UUID) -> uuid.U
 
 def _normalize_name(name: str) -> str:
     return " ".join(name.lower().strip().split())
+
+
+def _as_decimal(v: object) -> Decimal | None:
+    if v is None:
+        return None
+    try:
+        return Decimal(str(v))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _as_int(v: object) -> int | None:
+    if v is None or v == "":
+        return None
+    try:
+        return int(float(v))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
 
 
 # --- Detect -------------------------------------------------------------

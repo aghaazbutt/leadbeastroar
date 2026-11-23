@@ -317,11 +317,81 @@ def panic(request: Request) -> HTMLResponse:
 
 
 @router.get("/map", response_class=HTMLResponse, dependencies=[UiAuthDep])
-def map_view(request: Request) -> HTMLResponse:
+def map_view(
+    request: Request,
+    session: Annotated[Session, SessDep],
+    lat: float | None = None,
+    lng: float | None = None,
+    radius_km: float = 10.0,
+    category: str | None = None,
+) -> HTMLResponse:
+    results: list[dict[str, object]] = []
+    searched = lat is not None and lng is not None
+    if searched:
+        # Haversine distance in km. Earth radius 6371km. Avoids PostGIS dep.
+        # distance = 2*R*asin(sqrt(sin²((lat2-lat1)/2) + cos(lat1)*cos(lat2)*sin²((lng2-lng1)/2)))
+        distance_km = (
+            2
+            * 6371.0
+            * func.asin(
+                func.sqrt(
+                    func.power(func.sin(func.radians(Business.latitude - lat) / 2), 2)
+                    + func.cos(func.radians(lat))
+                    * func.cos(func.radians(Business.latitude))
+                    * func.power(func.sin(func.radians(Business.longitude - lng) / 2), 2)
+                )
+            )
+        )
+        stmt = (
+            select(Business, ScoreSnapshot, distance_km.label("distance_km"))
+            .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+            .where(Business.latitude.is_not(None), Business.longitude.is_not(None))
+            .where(distance_km <= radius_km)
+            .order_by(distance_km.asc())
+            .limit(200)
+        )
+        if category:
+            stmt = stmt.where(Business.category == category)
+        for biz, snap, dist in session.execute(stmt).all():
+            results.append(
+                {
+                    "id": str(biz.id),
+                    "name": biz.name,
+                    "city": biz.city,
+                    "category": biz.category,
+                    "phone": biz.phone,
+                    "website": biz.website,
+                    "latitude": float(biz.latitude) if biz.latitude is not None else None,
+                    "longitude": float(biz.longitude) if biz.longitude is not None else None,
+                    "distance_km": round(float(dist), 2),
+                    "score": snap.score if snap else None,
+                    "lead_class": snap.lead_class.value if snap else None,
+                }
+            )
+
+    categories = [
+        c
+        for (c,) in session.execute(
+            select(Business.category)
+            .where(Business.category.is_not(None))
+            .distinct()
+            .order_by(Business.category)
+        ).all()
+    ]
+
     return _TEMPLATES.TemplateResponse(
         request,
-        "stub.html",
-        {"title": "Map targeting", "nav_active": "map", "now": datetime.now(UTC)},
+        "map.html",
+        {
+            "nav_active": "map",
+            "lat": lat,
+            "lng": lng,
+            "radius_km": radius_km,
+            "category": category,
+            "categories": categories,
+            "results": results,
+            "searched": searched,
+        },
     )
 
 

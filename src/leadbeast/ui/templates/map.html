@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Map targeting · LeadBeast{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="p-6">
+  <h1 class="text-2xl font-semibold mb-1">Map targeting</h1>
+  <p class="text-sm text-slate-500 mb-5">
+    Drop a pin or type coordinates. We'll show businesses that fit within a radius —
+    10&nbsp;km by default.
+  </p>
+
+  <form method="get" action="/ui/map" class="bg-white border border-slate-200 rounded-lg p-4 mb-6 grid grid-cols-5 gap-3 items-end">
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Latitude</label>
+      <input name="lat" step="0.000001" type="number" value="{{ lat if lat is not none else '' }}"
+             placeholder="30.267153"
+             class="w-full border border-slate-300 rounded px-3 py-2 text-sm" required>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Longitude</label>
+      <input name="lng" step="0.000001" type="number" value="{{ lng if lng is not none else '' }}"
+             placeholder="-97.743057"
+             class="w-full border border-slate-300 rounded px-3 py-2 text-sm" required>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Radius (km)</label>
+      <input name="radius_km" step="0.1" type="number" value="{{ radius_km }}"
+             class="w-full border border-slate-300 rounded px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Category</label>
+      <select name="category" class="w-full border border-slate-300 rounded px-3 py-2 text-sm">
+        <option value="">Any</option>
+        {% for c in categories %}
+          <option value="{{ c }}" {% if c == category %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="bg-slate-900 text-white rounded px-4 py-2 text-sm font-medium">Search</button>
+  </form>
+
+  {% if searched %}
+    <div id="map" class="w-full h-80 rounded-lg border border-slate-200 mb-6"></div>
+  {% endif %}
+
+  {% if searched %}
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="text-sm text-slate-500 mb-3">
+        {{ results|length }} match{{ 'es' if results|length != 1 else '' }} within
+        {{ radius_km }} km of ({{ lat }}, {{ lng }}).
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left border-b border-slate-200">
+          <tr>
+            <th class="py-1">Name</th>
+            <th class="py-1">City</th>
+            <th class="py-1">Category</th>
+            <th class="py-1">Distance</th>
+            <th class="py-1">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in results %}
+            <tr class="border-b border-slate-100">
+              <td class="py-1 font-medium">
+                <a class="hover:underline" href="/ui/business/{{ r.id }}">{{ r.name }}</a>
+              </td>
+              <td class="py-1 text-slate-600">{{ r.city or '' }}</td>
+              <td class="py-1 text-slate-600">{{ r.category or '' }}</td>
+              <td class="py-1 text-slate-600">{{ r.distance_km }} km</td>
+              <td class="py-1 text-slate-600">
+                {% if r.score is not none %}
+                  <span class="chip-{{ r.lead_class }} rounded px-2 py-0.5 text-xs">{{ r.score }} · {{ r.lead_class }}</span>
+                {% else %}
+                  <span class="text-slate-400">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="py-4 text-slate-400">No businesses in this radius.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      (function () {
+        const center = [{{ lat }}, {{ lng }}];
+        const radiusMeters = {{ radius_km }} * 1000;
+        const map = L.map('map').setView(center, 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        L.circle(center, { radius: radiusMeters, color: '#0f172a', weight: 1, fillOpacity: 0.05 }).addTo(map);
+        L.marker(center).addTo(map).bindPopup('Target pin');
+
+        const results = {{ results | tojson }};
+        const bounds = [center];
+        results.forEach(r => {
+          if (r.latitude != null && r.longitude != null) {
+            const m = L.marker([r.latitude, r.longitude]).addTo(map);
+            m.bindPopup(
+              '<b>' + r.name + '</b><br>' +
+              (r.category || '') + (r.city ? ' · ' + r.city : '') + '<br>' +
+              r.distance_km + ' km'
+            );
+            bounds.push([r.latitude, r.longitude]);
+          }
+        });
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
+      })();
+    </script>
+  {% else %}
+    <div class="bg-white border border-slate-200 rounded-lg p-6 text-sm text-slate-500">
+      Enter coordinates to start. Tip: pick a city centre (Austin 30.27, -97.74 · Denver 39.74, -104.99 · Portland 45.52, -122.68).
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
