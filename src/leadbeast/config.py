@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn
+from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,20 @@ class Settings(BaseSettings):
         "postgresql://leadbeast:change-me-in-production@postgres:5432/leadbeast",
         alias="PROCRASTINATE_DSN",
     )
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _coerce_database_url(cls, v: object) -> object:
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            return "postgresql+psycopg://" + v[len("postgresql://") :]
+        return v
+
+    @field_validator("procrastinate_dsn", mode="before")
+    @classmethod
+    def _coerce_procrastinate_dsn(cls, v: object) -> object:
+        if isinstance(v, str) and v.startswith("postgresql+psycopg://"):
+            return "postgresql://" + v[len("postgresql+psycopg://") :]
+        return v
 
     cap_per_run_cents: int = Field(500, alias="LB_CAP_PER_RUN")
     cap_per_day_cents: int = Field(2000, alias="LB_CAP_PER_DAY")
