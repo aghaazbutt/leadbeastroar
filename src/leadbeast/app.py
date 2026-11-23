@@ -35,7 +35,9 @@ from leadbeast.api.v1 import (
     outcomes,
 )
 from leadbeast.config import get_settings
+from leadbeast.db.session import SessionLocal
 from leadbeast.logging import configure_logging, get_logger
+from leadbeast.packs import seed_default_packs
 from leadbeast.ui import routes as ui_routes
 
 log = get_logger("app")
@@ -78,6 +80,10 @@ def _register_adapters() -> None:
 async def lifespan(app: FastAPI):
     configure_logging()
     _register_adapters()
+    with SessionLocal() as session:
+        inserted = seed_default_packs(session)
+    if inserted:
+        log.info("packs.seeded", count=inserted)
     yield
 
 

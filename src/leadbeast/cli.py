@@ -21,6 +21,7 @@ from leadbeast.db.models import (
 )
 from leadbeast.db.session import SessionLocal
 from leadbeast.logging import configure_logging, get_logger
+from leadbeast.packs import seed_default_packs
 from leadbeast.pipeline.stages import (
     detect_stage,
     draft_stage,
@@ -56,22 +57,12 @@ def campaign_new(name: str, pack_key: str = "visibility_gap") -> None:
 
 @app.command("pack-seed")
 def pack_seed() -> None:
-    """Install the default Visibility Gap pack."""
+    """Install the default built-in packs."""
     with SessionLocal() as session:
-        exists = session.execute(select(Pack).where(Pack.key == "visibility_gap")).scalar_one_or_none()
-        if exists is not None:
-            typer.echo("visibility_gap pack already seeded")
-            return
-        pack = Pack(
-            key="visibility_gap",
-            name="Visibility Gap",
-            offer_summary="a 1-page visibility diagnostic focused on missing basics",
-            weights={},
-            detectors=["website_reachable", "https_present", "business_hours_on_site"],
-        )
-        session.add(pack)
-        session.commit()
-        typer.echo(f"Seeded pack: {pack.id}")
+        inserted = seed_default_packs(session)
+    typer.echo(
+        f"Seeded {inserted} pack(s)" if inserted else "Default packs already present"
+    )
 
 
 @ingest_app.command("csv")

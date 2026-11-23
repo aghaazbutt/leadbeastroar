@@ -7,15 +7,20 @@
   <div class="grid grid-cols-2 gap-6">
     <form method="post" action="/ui/campaigns" class="bg-white border border-slate-200 rounded-lg p-5">
       <h2 class="font-semibold mb-4">Start a new campaign</h2>
+      {% if request.query_params.get("err") == "pack" %}
+        <div class="mb-4 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2">
+          No pack available. Run <code>lb pack-seed</code> or restart the app so default packs are installed.
+        </div>
+      {% endif %}
       <label class="block text-sm text-slate-600 mb-1">Name</label>
       <input name="name" required class="w-full border border-slate-300 rounded px-3 py-2 mb-4" placeholder="Visibility Gap — Lahore Q4">
 
       <label class="block text-sm text-slate-600 mb-1">Pack</label>
-      <select name="pack_key" class="w-full border border-slate-300 rounded px-3 py-2 mb-4">
+      <select name="pack_key" {% if not packs %}disabled{% endif %} class="w-full border border-slate-300 rounded px-3 py-2 mb-4 disabled:bg-slate-100">
         {% for p in packs %}
           <option value="{{ p.key }}">{{ p.name }}</option>
         {% else %}
-          <option value="visibility_gap">Visibility Gap (default)</option>
+          <option value="">(no packs installed)</option>
         {% endfor %}
       </select>
 
