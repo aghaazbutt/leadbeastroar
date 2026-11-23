@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visibility Report — {{ business.name }}</title>
+<style>
+  @page { margin: 0.75in; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #111; }
+  h1 { font-size: 20pt; margin: 0 0 4pt; }
+  h2 { font-size: 13pt; margin-top: 18pt; margin-bottom: 4pt; color: #334; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid #ddd; text-align: left; padding: 4pt 6pt; font-size: 10pt; }
+  .pill { display: inline-block; padding: 1pt 6pt; border-radius: 4pt; font-size: 9pt; }
+  .pill-yes { background: #dcfce7; color: #166534; }
+  .pill-no  { background: #fee2e2; color: #991b1b; }
+  .muted { color: #667; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <h1>Visibility Report — {{ business.name }}</h1>
+  <div class="muted">{{ business.city or "" }}{% if business.website %} · {{ business.website }}{% endif %}</div>
+
+  <h2>The short version</h2>
+  <p>{{ short_summary }}</p>
+
+  <h2>What we checked</h2>
+  <table>
+    <thead><tr><th>Signal</th><th>State</th><th>Observed</th></tr></thead>
+    <tbody>
+      {% for ev in evidence %}
+        <tr>
+          <td>{{ ev.signal }}</td>
+          <td><span class="pill pill-{{ 'yes' if ev.state_value == 'observed_yes' else 'no' }}">{{ ev.state_value }}</span></td>
+          <td class="muted">{{ ev.observed_at }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Three-step fix plan</h2>
+  <ol>
+    {% for step in plan %}
+      <li>{{ step }}</li>
+    {% endfor %}
+  </ol>
+</body>
+</html>

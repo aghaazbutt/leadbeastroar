@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}LeadBeast{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .chip-A { background-color: #dcfce7; color: #166534; }
+    .chip-B { background-color: #dbeafe; color: #1e40af; }
+    .chip-C { background-color: #fef3c7; color: #92400e; }
+    .chip-D { background-color: #fee2e2; color: #991b1b; }
+    .chip-high { background-color: #dcfce7; color: #166534; }
+    .chip-medium { background-color: #fef3c7; color: #92400e; }
+    .chip-low { background-color: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex">
+  <aside class="w-56 bg-white border-r border-slate-200 p-4 flex flex-col">
+    <div class="font-bold text-lg mb-6">LeadBeast</div>
+
+    <div class="text-xs uppercase text-slate-400 mb-1 mt-2">Set up</div>
+    <a href="/ui/campaigns" class="py-1 px-2 rounded {% if nav_active == 'campaigns' %}bg-slate-100 font-semibold{% endif %}">Campaign Studio</a>
+
+    <div class="text-xs uppercase text-slate-400 mb-1 mt-3">Find &amp; judge</div>
+    <a href="/ui/opportunities" class="py-1 px-2 rounded {% if nav_active == 'opportunities' %}bg-slate-100 font-semibold{% endif %}">Opportunities</a>
+    <a href="/ui/map" class="py-1 px-2 rounded {% if nav_active == 'map' %}bg-slate-100 font-semibold{% endif %}">Map targeting</a>
+
+    <div class="text-xs uppercase text-slate-400 mb-1 mt-3">Reach &amp; win</div>
+    <a href="/ui/approvals" class="py-1 px-2 rounded {% if nav_active == 'approvals' %}bg-slate-100 font-semibold{% endif %}">Approvals</a>
+    <a href="/ui/dialer" class="py-1 px-2 rounded {% if nav_active == 'dialer' %}bg-slate-100 font-semibold{% endif %}">Dialer Board</a>
+
+    <div class="text-xs uppercase text-slate-400 mb-1 mt-3">Learn</div>
+    <a href="/ui/market" class="py-1 px-2 rounded {% if nav_active == 'market' %}bg-slate-100 font-semibold{% endif %}">Market &amp; learning</a>
+
+    <div class="text-xs uppercase text-slate-400 mb-1 mt-3">Panic</div>
+    <a href="/ui/panic" class="py-1 px-2 rounded {% if nav_active == 'panic' %}bg-slate-100 font-semibold{% endif %}">Panic Alerts</a>
+
+    <div class="text-xs uppercase text-slate-400 mb-1 mt-3">Run</div>
+    <a href="/ui/sources" class="py-1 px-2 rounded {% if nav_active == 'sources' %}bg-slate-100 font-semibold{% endif %}">Sources &amp; cost</a>
+
+    <div class="flex-1"></div>
+    <a href="/ui/logout" class="text-xs text-slate-500 mt-6 hover:underline">Sign out</a>
+  </aside>
+
+  <main class="flex-1 overflow-x-hidden">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

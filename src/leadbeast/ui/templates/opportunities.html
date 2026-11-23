@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Opportunities · LeadBeast{% endblock %}
+{% block content %}
+<div class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-2xl font-semibold">Opportunities</h1>
+    <div class="flex items-center gap-4">
+      <div class="bg-amber-100 text-amber-800 rounded px-3 py-1 text-sm font-medium">
+        Waiting for your approval: {{ pending_count }}
+      </div>
+      <a href="/ui/campaigns" class="text-sm text-slate-600 hover:underline">New campaign →</a>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 text-left">
+        <tr>
+          <th class="py-2 px-3 w-10">Class</th>
+          <th class="py-2 px-3">Name</th>
+          <th class="py-2 px-3">City</th>
+          <th class="py-2 px-3 w-20">Score</th>
+          <th class="py-2 px-3 w-24">Confidence</th>
+          <th class="py-2 px-3">Website</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in opps %}
+          <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="window.location='/ui/business/{{ o.id }}'">
+            <td class="py-2 px-3">
+              {% if o.lead_class %}<span class="inline-block px-2 py-0.5 rounded text-xs font-semibold chip-{{ o.lead_class }}">{{ o.lead_class }}</span>{% else %}<span class="text-slate-300">—</span>{% endif %}
+            </td>
+            <td class="py-2 px-3 font-medium">{{ o.name }}</td>
+            <td class="py-2 px-3 text-slate-600">{{ o.city or "" }}</td>
+            <td class="py-2 px-3">{{ o.score if o.score is not none else "—" }}</td>
+            <td class="py-2 px-3">
+              {% if o.confidence %}<span class="inline-block px-2 py-0.5 rounded text-xs chip-{{ o.confidence }}">{{ o.confidence }}</span>{% endif %}
+            </td>
+            <td class="py-2 px-3 text-slate-500">{{ o.website or "" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="py-10 text-center text-slate-400">No opportunities yet. Ingest a CSV or run a campaign to get started.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

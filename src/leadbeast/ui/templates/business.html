@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ biz.name }} · LeadBeast{% endblock %}
+{% block content %}
+<div class="p-6 grid grid-cols-3 gap-6">
+  <div class="col-span-2">
+    <a href="/ui/opportunities" class="text-sm text-slate-500 hover:underline">← Back to Opportunities</a>
+    <h1 class="text-2xl font-semibold mt-2">{{ biz.name }}</h1>
+    <div class="text-slate-500 text-sm mb-6">
+      {{ biz.category or "" }}{% if biz.city %} · {{ biz.city }}{% endif %}
+      {% if biz.website %} · <a href="{{ biz.website }}" target="_blank" class="hover:underline">{{ biz.website }}</a>{% endif %}
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-lg p-4 mb-6">
+      <h2 class="font-semibold mb-3">Evidence</h2>
+      <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left border-b border-slate-200">
+          <tr>
+            <th class="py-1">Signal</th>
+            <th class="py-1">State</th>
+            <th class="py-1">Source</th>
+            <th class="py-1">Observed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ev in evidence %}
+            <tr class="border-b border-slate-100">
+              <td class="py-1 font-medium">{{ ev.signal }}</td>
+              <td class="py-1">{{ ev.state.value }}</td>
+              <td class="py-1 text-slate-500">{{ ev.source_key }}{% if ev.detector_version %} v{{ ev.detector_version }}{% endif %}</td>
+              <td class="py-1 text-slate-500">{{ ev.observed_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="py-4 text-slate-400">No evidence yet. Run the detect stage.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <aside class="col-span-1">
+    <div class="bg-white border border-slate-200 rounded-lg p-4 mb-4">
+      <h2 class="font-semibold mb-2">Score</h2>
+      {% if snap %}
+        <div class="flex items-center gap-3 mb-2">
+          <div class="text-3xl font-bold">{{ snap.score }}</div>
+          <span class="chip-{{ snap.lead_class.value }} px-2 py-0.5 rounded text-sm font-semibold">{{ snap.lead_class.value }}</span>
+          <span class="chip-{{ snap.confidence.value }} px-2 py-0.5 rounded text-xs">{{ snap.confidence.value }}</span>
+        </div>
+        <div class="text-xs text-slate-500 mb-2">pack {{ snap.pack_version }}</div>
+        <div class="text-sm">
+          {% for sub, val in snap.sub_scores.items() %}
+            <div class="flex items-center justify-between py-0.5">
+              <span class="text-slate-600">{{ sub }}</span>
+              <span class="font-medium">{{ val }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-sm text-slate-400">No score yet.</div>
+      {% endif %}
+    </div>
+
+    {% if pending_draft %}
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <h2 class="font-semibold mb-2">Pending outreach</h2>
+      <div class="text-xs text-slate-500 mb-1">Subject</div>
+      <div class="text-sm mb-3">{{ pending_draft.subject }}</div>
+      <div class="text-xs text-slate-500 mb-1">Body</div>
+      <pre class="text-xs whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded p-2 mb-3">{{ pending_draft.body }}</pre>
+      <div class="flex gap-2">
+        <form method="post" action="/v1/drafts/{{ pending_draft.id }}/approve" class="inline">
+          <button class="bg-slate-900 text-white rounded px-3 py-1 text-sm">Approve</button>
+        </form>
+        <form method="post" action="/v1/drafts/{{ pending_draft.id }}/skip" class="inline">
+          <button class="border border-slate-300 rounded px-3 py-1 text-sm">Skip</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

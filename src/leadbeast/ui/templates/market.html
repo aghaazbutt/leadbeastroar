@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Market &amp; learning · LeadBeast{% endblock %}
+{% block content %}
+<div class="p-6">
+  <h1 class="text-2xl font-semibold mb-5">Market &amp; learning</h1>
+
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="text-xs text-slate-500">Found</div>
+      <div class="text-2xl font-semibold">{{ total_biz }}</div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="text-xs text-slate-500">Approved</div>
+      <div class="text-2xl font-semibold">{{ approved }}</div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="text-xs text-slate-500">Sent</div>
+      <div class="text-2xl font-semibold">{{ sent }}</div>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-lg p-4">
+      <div class="text-xs text-slate-500">Status</div>
+      <div class="text-sm text-slate-600">Not enough outcomes yet to train a model.</div>
+    </div>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-lg p-4">
+    <h2 class="font-semibold mb-3">Gap distribution by class</h2>
+    <div class="space-y-2">
+      {% for cls, n in gap.items() %}
+        <div class="flex items-center gap-3">
+          <span class="chip-{{ cls }} px-2 py-0.5 rounded text-xs font-semibold w-8 text-center">{{ cls }}</span>
+          <div class="flex-1 bg-slate-100 rounded h-3 overflow-hidden">
+            {% set width = (n * 10) if n < 100 else 100 %}
+            <div class="h-3 bg-slate-500" style="width: {{ width }}%"></div>
+          </div>
+          <span class="text-sm text-slate-600 w-10 text-right">{{ n }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

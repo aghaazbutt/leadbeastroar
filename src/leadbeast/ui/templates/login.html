@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LeadBeast — sign in</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center">
+  <form method="post" action="/ui/login" class="bg-white border border-slate-200 rounded-lg p-6 w-96 shadow-sm">
+    <div class="font-bold text-xl mb-4">LeadBeast</div>
+    <label class="block text-sm text-slate-600 mb-1">Operator token</label>
+    <input name="token" type="password" autofocus class="w-full border border-slate-300 rounded px-3 py-2 mb-4" placeholder="Paste LB_API_TOKEN here">
+    <button type="submit" class="w-full bg-slate-900 text-white rounded px-3 py-2 font-medium hover:bg-slate-800">Sign in</button>
+    {% if request.query_params.get("err") %}
+      <div class="text-sm text-red-600 mt-3">Invalid token.</div>
+    {% endif %}
+  </form>
+</body>
+</html>

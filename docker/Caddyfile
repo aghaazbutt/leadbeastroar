@@ -1,0 +1,13 @@
+# Replace example.com with your actual domain to enable HTTPS automatically.
+# For local dev, use `http://localhost` as the site address.
+
+:80 {
+  reverse_proxy app:8000
+  encode gzip
+}
+
+# Production example — uncomment and edit:
+# leadbeast.example.com {
+#   reverse_proxy app:8000
+#   encode gzip
+# }
