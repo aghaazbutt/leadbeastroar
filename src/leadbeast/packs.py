@@ -170,6 +170,25 @@ async def seed_demo_scores(session: Session) -> int:
     if campaign is None:
         return 0
 
+    # If the campaign's existing snapshots are all one class (bad demo state
+    # left over from an earlier boot that relied on real detectors on fake
+    # URLs), wipe them so the hand-crafted spread below can replace them.
+    existing_classes = {
+        r[0]
+        for r in session.execute(
+            select(ScoreSnapshot.lead_class.distinct()).where(
+                ScoreSnapshot.campaign_id == campaign.id
+            )
+        ).all()
+    }
+    if len(existing_classes) == 1:
+        session.execute(
+            ScoreSnapshot.__table__.delete().where(
+                ScoreSnapshot.campaign_id == campaign.id
+            )
+        )
+        session.commit()
+
     businesses = list(
         session.execute(
             select(Business)
