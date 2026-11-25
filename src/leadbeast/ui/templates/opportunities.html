@@ -62,13 +62,15 @@
         </thead>
         <tbody>
           {% for o in opps %}
-            <tr class="border-b hover:bg-stone-50 cursor-pointer" style="border-color:var(--line)" onclick="window.location='/ui/business/{{ o.id }}'">
+            <tr class="border-b hover:bg-stone-50" style="border-color:var(--line)">
               <td class="py-2 pl-4">
-                <div class="font-semibold">{{ o.name }}</div>
-                <div class="text-xs text-slate-500">
-                  {{ o.city or '' }}{% if o.region %}, {{ o.region }}{% endif %}
-                  {% if o.category %} · {{ o.category }}{% endif %}
-                </div>
+                <a href="/ui/business/{{ o.id }}" class="block">
+                  <div class="font-semibold hover:underline">{{ o.name }}</div>
+                  <div class="text-xs text-slate-500">
+                    {{ o.city or '' }}{% if o.region %}, {{ o.region }}{% endif %}
+                    {% if o.category %} · {{ o.category }}{% endif %}
+                  </div>
+                </a>
               </td>
               <td class="py-2">
                 {% if o.lead_class %}
