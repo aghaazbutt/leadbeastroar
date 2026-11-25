@@ -2,28 +2,119 @@
 {% block title %}Sources, cost, accuracy · LeadBeast{% endblock %}
 {% block content %}
 <div class="p-6">
-  <h1 class="text-2xl font-semibold mb-5">Sources, cost, accuracy</h1>
+  <h1 class="text-2xl font-semibold">Sources, cost, accuracy</h1>
+  <p class="text-sm text-slate-500 mt-1 mb-5">
+    The swappable parts. Change provider in .env and restart to swap. Adapters are Protocol-based.
+  </p>
 
-  <div class="grid grid-cols-2 gap-6">
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <h2 class="font-semibold mb-3">Swappable parts</h2>
+  <div class="grid grid-cols-3 gap-6">
+
+    <div class="panel p-5">
+      <h2 class="font-semibold mb-4">Swappable parts</h2>
       <table class="w-full text-sm">
         <tbody>
-          <tr class="border-b border-slate-100"><td class="py-1 text-slate-500">Model</td><td class="py-1 font-medium">{{ settings_view.model_provider }}</td></tr>
-          <tr class="border-b border-slate-100"><td class="py-1 text-slate-500">Channel</td><td class="py-1 font-medium">{{ settings_view.channel_provider }}</td></tr>
-          <tr class="border-b border-slate-100"><td class="py-1 text-slate-500">CRM</td><td class="py-1 font-medium">{{ settings_view.crm_provider }}</td></tr>
-          <tr><td class="py-1 text-slate-500">Dry-run</td><td class="py-1 font-medium">{{ "yes" if settings_view.dry_run else "no" }}</td></tr>
+          <tr class="border-b" style="border-color:var(--line)">
+            <td class="py-2 text-slate-500">Model</td>
+            <td class="py-2 font-medium text-right">{{ settings_view.model_provider }}</td>
+          </tr>
+          <tr class="border-b" style="border-color:var(--line)">
+            <td class="py-2 text-slate-500">Channel</td>
+            <td class="py-2 font-medium text-right">{{ settings_view.channel_provider }}</td>
+          </tr>
+          <tr class="border-b" style="border-color:var(--line)">
+            <td class="py-2 text-slate-500">CRM</td>
+            <td class="py-2 font-medium text-right">{{ settings_view.crm_provider }}</td>
+          </tr>
+          <tr>
+            <td class="py-2 text-slate-500">Dry-run</td>
+            <td class="py-2 font-medium text-right">
+              {% if settings_view.dry_run %}
+                <span class="chip-A rounded px-2 py-0.5 text-xs">yes · safe</span>
+              {% else %}
+                <span class="chip-D rounded px-2 py-0.5 text-xs">no · sending</span>
+              {% endif %}
+            </td>
+          </tr>
         </tbody>
       </table>
-      <div class="text-xs text-slate-400 mt-3">Change in .env and restart to swap. Adapters are Protocol-based.</div>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <h2 class="font-semibold mb-3">Cost guard</h2>
-      <div class="text-sm text-slate-600">Per-day cap: ${{ "%.2f"|format(settings_view.cap_per_day/100) }}</div>
-      <div class="text-sm text-slate-600">Per-month cap: ${{ "%.2f"|format(settings_view.cap_per_month/100) }}</div>
-      <div class="text-xs text-slate-400 mt-3">Alerts fire at 50 / 80 / 100%. Free sources write cents=0 so volume is still observable.</div>
+    <div class="panel p-5">
+      <h2 class="font-semibold mb-4">Cost guard</h2>
+      <div class="space-y-3">
+        <div>
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-500">Per-day cap</span>
+            <span class="font-medium">${{ "%.2f"|format(settings_view.cap_per_day/100) }}</span>
+          </div>
+          <div class="h-2 mt-1 rounded bg-stone-200 overflow-hidden">
+            <div class="h-full" style="width: 0%; background:var(--accent)"></div>
+          </div>
+          <div class="text-xs text-slate-400 mt-1">$0 spent today</div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-500">Per-month cap</span>
+            <span class="font-medium">${{ "%.2f"|format(settings_view.cap_per_month/100) }}</span>
+          </div>
+          <div class="h-2 mt-1 rounded bg-stone-200 overflow-hidden">
+            <div class="h-full" style="width: 0%; background:var(--accent)"></div>
+          </div>
+          <div class="text-xs text-slate-400 mt-1">$0 spent this month</div>
+        </div>
+        <p class="text-xs text-slate-500">
+          Alerts fire at 50 / 80 / 100%. Free sources write cents=0 so volume is still observable.
+        </p>
+      </div>
     </div>
+
+    <div class="panel p-5 text-sm">
+      <h2 class="font-semibold mb-3">Safety rails</h2>
+      <ul class="text-slate-700 space-y-2 list-disc list-inside">
+        <li>Nothing is sent to a business without your approval.</li>
+        <li>Do-not-contact list always applies.</li>
+        <li>Quiet hours respected if configured.</li>
+        <li>Rate limits per channel to avoid spam flags.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="panel mt-6">
+    <div class="flex items-center justify-between px-5 py-3 border-b" style="border-color:var(--line)">
+      <h2 class="font-semibold">Data sources</h2>
+      <span class="text-xs text-slate-500">Free first; paid connectors opt-in</span>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="text-slate-500 text-left border-b" style="border-color:var(--line)">
+        <tr>
+          <th class="py-2 pl-5">Source</th>
+          <th class="py-2">Status</th>
+          <th class="py-2">Cost</th>
+          <th class="py-2 pr-5">How to use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b" style="border-color:var(--line)">
+          <td class="py-2 pl-5 font-medium">CSV upload</td>
+          <td class="py-2"><span class="chip-A rounded px-2 py-0.5 text-xs">Live</span></td>
+          <td class="py-2 text-slate-600">Free</td>
+          <td class="py-2 pr-5 text-slate-600"><code class="text-xs">lb ingest csv seeds/businesses.csv "Demo"</code></td>
+        </tr>
+        <tr class="border-b" style="border-color:var(--line)">
+          <td class="py-2 pl-5 font-medium">OpenStreetMap (Overpass)</td>
+          <td class="py-2"><span class="chip-A rounded px-2 py-0.5 text-xs">Live</span></td>
+          <td class="py-2 text-slate-600">Free</td>
+          <td class="py-2 pr-5 text-slate-600"><code class="text-xs">lb ingest osm "Demo" --lat 45.52 --lon -122.68 --radius-m 5000</code></td>
+        </tr>
+        <tr>
+          <td class="py-2 pl-5 font-medium">Google Places</td>
+          <td class="py-2"><span class="chip-C rounded px-2 py-0.5 text-xs">Not wired</span></td>
+          <td class="py-2 text-slate-600">Paid</td>
+          <td class="py-2 pr-5 text-slate-500">Add API key then enable in .env</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 {% endblock %}

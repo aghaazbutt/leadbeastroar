@@ -2,31 +2,50 @@
 {% block title %}Approvals · LeadBeast{% endblock %}
 {% block content %}
 <div class="p-6">
-  <h1 class="text-2xl font-semibold mb-5">Approval queue</h1>
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <h1 class="text-2xl font-semibold">Approvals</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Nothing is sent until you approve it. Edit inline if the opener needs a tweak.
+      </p>
+    </div>
+    <div class="text-sm text-slate-500">
+      Waiting: <span class="font-semibold text-slate-900">{{ drafts|length }}</span>
+    </div>
+  </div>
+
   <div class="space-y-4">
     {% for draft, biz in drafts %}
-      <div class="bg-white border border-slate-200 rounded-lg p-4">
-        <div class="flex items-center justify-between mb-2">
+      <div class="panel p-5">
+        <div class="flex items-start justify-between mb-3">
           <div>
-            <a href="/ui/business/{{ biz.id }}" class="font-semibold hover:underline">{{ biz.name }}</a>
-            <span class="text-slate-500 text-sm ml-2">{{ biz.city or "" }}</span>
+            <a href="/ui/business/{{ biz.id }}" class="text-lg font-semibold hover:underline">{{ biz.name }}</a>
+            <div class="text-xs text-slate-500 mt-0.5">
+              {% if biz.city %}{{ biz.city }}{% endif %}{% if biz.region %}, {{ biz.region }}{% endif %}
+              {% if biz.category %} · {{ biz.category }}{% endif %}
+            </div>
           </div>
-          <div class="text-xs text-slate-400">{{ draft.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+          <div class="text-xs text-slate-500">{{ draft.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
         </div>
+
         <div class="text-xs text-slate-500">Subject</div>
-        <div class="mb-2">{{ draft.subject }}</div>
-        <pre class="text-sm whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded p-2 mb-3">{{ draft.body }}</pre>
+        <div class="font-medium mb-3">{{ draft.subject }}</div>
+        <div class="text-xs text-slate-500">Body</div>
+        <pre class="text-sm whitespace-pre-wrap bg-stone-50 border rounded p-3 mb-4" style="border-color:var(--line)">{{ draft.body }}</pre>
+
         <div class="flex gap-2">
-          <form method="post" action="/v1/drafts/{{ draft.id }}/approve">
-            <button class="bg-slate-900 text-white rounded px-3 py-1 text-sm">Approve</button>
+          <form method="post" action="/v1/drafts/{{ draft.id }}/approve" class="flex-1">
+            <button class="w-full btn-primary">Approve and queue</button>
           </form>
           <form method="post" action="/v1/drafts/{{ draft.id }}/skip">
-            <button class="border border-slate-300 rounded px-3 py-1 text-sm">Skip</button>
+            <button class="btn-ghost">Skip</button>
           </form>
         </div>
       </div>
     {% else %}
-      <div class="text-slate-400">Nothing waiting for approval. Nice.</div>
+      <div class="panel p-10 text-center text-slate-400">
+        Nothing waiting for approval. Nice.
+      </div>
     {% endfor %}
   </div>
 </div>

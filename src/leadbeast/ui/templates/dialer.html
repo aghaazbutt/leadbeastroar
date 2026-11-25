@@ -13,7 +13,7 @@
         <input type="number" name="limit" value="20" min="1" max="200"
                class="w-24 border border-slate-300 rounded px-3 py-2 text-sm">
       </div>
-      <button class="bg-slate-900 text-white rounded px-4 py-2 text-sm font-medium">
+      <button class="btn-primary">
         Build queue ({{ unqueued_with_phone }} eligible)
       </button>
     </form>
@@ -25,28 +25,28 @@
     </div>
   {% endif %}
 
-  <div class="grid grid-cols-4 gap-4 mb-5">
-    <div class="bg-white border border-slate-200 rounded-lg p-3">
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="panel p-4">
       <div class="text-xs text-slate-500">Queued</div>
-      <div class="text-2xl font-semibold">{{ counts.get('queued', 0) }}</div>
+      <div class="text-3xl font-semibold">{{ counts.get('queued', 0) }}</div>
     </div>
-    <div class="bg-white border border-slate-200 rounded-lg p-3">
+    <div class="panel p-4">
       <div class="text-xs text-slate-500">In progress</div>
-      <div class="text-2xl font-semibold">{{ counts.get('in_progress', 0) }}</div>
+      <div class="text-3xl font-semibold text-amber-700">{{ counts.get('in_progress', 0) }}</div>
     </div>
-    <div class="bg-white border border-slate-200 rounded-lg p-3">
+    <div class="panel p-4">
       <div class="text-xs text-slate-500">Completed</div>
-      <div class="text-2xl font-semibold">{{ counts.get('completed', 0) }}</div>
+      <div class="text-3xl font-semibold" style="color:var(--accent)">{{ counts.get('completed', 0) }}</div>
     </div>
-    <div class="bg-white border border-slate-200 rounded-lg p-3">
+    <div class="panel p-4">
       <div class="text-xs text-slate-500">Skipped</div>
-      <div class="text-2xl font-semibold">{{ counts.get('skipped', 0) }}</div>
+      <div class="text-3xl font-semibold text-slate-400">{{ counts.get('skipped', 0) }}</div>
     </div>
   </div>
 
-  <div class="bg-white border border-slate-200 rounded-lg">
+  <div class="panel">
     <table class="w-full text-sm">
-      <thead class="text-slate-500 text-left border-b border-slate-200">
+      <thead class="text-slate-500 text-left border-b" style="border-color:var(--line)">
         <tr>
           <th class="py-2 pl-4">Business</th>
           <th class="py-2">Phone</th>
