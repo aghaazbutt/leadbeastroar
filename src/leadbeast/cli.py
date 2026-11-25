@@ -10,6 +10,7 @@ import typer
 from sqlalchemy import select
 
 from leadbeast.adapters.source.csv_adapter import CsvSourceAdapter
+from leadbeast.adapters.source.osm import OsmOverpassAdapter
 from leadbeast.db.models import (
     Business,
     Campaign,
@@ -113,6 +114,72 @@ async def _ingest_csv(path: Path, campaign_name: str) -> None:
             count += 1
         session.commit()
         typer.echo(f"Ingested {count} records into {campaign_name}")
+
+
+@ingest_app.command("osm")
+def ingest_osm(
+    campaign: str,
+    lat: float = typer.Option(..., help="Latitude of center point"),
+    lon: float = typer.Option(..., help="Longitude of center point"),
+    radius_m: int = typer.Option(5000, help="Search radius in meters"),
+    categories: str = typer.Option(
+        "shop,office,amenity",
+        help="Comma-separated OSM top-level tags: shop, office, amenity, craft",
+    ),
+) -> None:
+    """Ingest businesses around a point from OpenStreetMap (free, no key)."""
+    cats = [c.strip() for c in categories.split(",") if c.strip()]
+    asyncio.run(_ingest_osm(campaign, lat, lon, radius_m, cats))
+
+
+async def _ingest_osm(
+    campaign_name: str, lat: float, lon: float, radius_m: int, categories: list[str]
+) -> None:
+    with SessionLocal() as session:
+        c = session.execute(select(Campaign).where(Campaign.name == campaign_name)).scalar_one_or_none()
+        if c is None:
+            typer.echo(f"Campaign '{campaign_name}' not found", err=True)
+            raise typer.Exit(code=2)
+
+        adapter = OsmOverpassAdapter()
+        count = 0
+        skipped = 0
+        async for rec in adapter.fetch(
+            query={"lat": lat, "lon": lon, "radius_m": radius_m, "categories": categories}
+        ):
+            existing = session.execute(
+                select(SourceRecord).where(
+                    SourceRecord.source_key == rec.source_key,
+                    SourceRecord.external_id == rec.external_id,
+                )
+            ).scalar_one_or_none()
+            if existing is not None:
+                skipped += 1
+                continue
+            sr = SourceRecord(
+                source_key=rec.source_key,
+                external_id=rec.external_id,
+                raw={
+                    "name": rec.name,
+                    "website": rec.website,
+                    "phone": rec.phone,
+                    "email": rec.email,
+                    "address": rec.address,
+                    "city": rec.city,
+                    "region": rec.region,
+                    "country": rec.country,
+                    "category": rec.category,
+                    "latitude": str(rec.latitude) if rec.latitude is not None else None,
+                    "longitude": str(rec.longitude) if rec.longitude is not None else None,
+                    "employee_count_est": rec.employee_count_est,
+                },
+            )
+            session.add(sr)
+            session.flush()
+            resolve_business(session, source_record_id=sr.id)
+            count += 1
+        session.commit()
+        typer.echo(f"Ingested {count} new, skipped {skipped} duplicate into {campaign_name}")
 
 
 @app.command("run-pipeline")
