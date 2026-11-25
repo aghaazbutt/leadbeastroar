@@ -87,6 +87,12 @@ class DraftStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class PanicAlertStatus(str, enum.Enum):
+    NEW = "new"
+    ACKNOWLEDGED = "acknowledged"
+    DISMISSED = "dismissed"
+
+
 class CallTaskStatus(str, enum.Enum):
     QUEUED = "queued"
     IN_PROGRESS = "in_progress"
@@ -370,6 +376,60 @@ class Outcome(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+# --- Panic Alerts -------------------------------------------------------
+
+
+class PanicWatch(Base):
+    __tablename__ = "panic_watch"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    # Rule criteria (any subset is OK; AND semantics across filled fields)
+    region: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    min_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    lead_class_at_least: Mapped[LeadClass | None] = mapped_column(
+        Enum(LeadClass, name="lead_class"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    last_evaluated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class PanicAlert(Base):
+    __tablename__ = "panic_alert"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
+    watch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("panic_watch.id"), nullable=False, index=True
+    )
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("business.id"), nullable=False, index=True
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[PanicAlertStatus] = mapped_column(
+        Enum(PanicAlertStatus, name="panic_alert_status"),
+        nullable=False,
+        default=PanicAlertStatus.NEW,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("watch_id", "business_id", name="uq_alert_watch_business"),
     )
 
 

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Panic Alerts · LeadBeast{% endblock %}
+{% block content %}
+<div class="p-6">
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <h1 class="text-2xl font-semibold">Panic Alerts</h1>
+      <p class="text-sm text-slate-500 mt-1 max-w-3xl">
+        LeadBeast watches around the clock. You decide the category once;
+        it tells you the moment a business matches.
+      </p>
+    </div>
+    <form method="post" action="/ui/panic/evaluate" class="inline">
+      <button class="bg-slate-900 text-white rounded px-4 py-2 text-sm font-medium">Run now</button>
+    </form>
+  </div>
+
+  {% if request.query_params.get("created") %}
+    <div class="mb-4 text-sm bg-emerald-50 border border-emerald-200 text-emerald-800 rounded px-3 py-2">
+      Watch created · {{ request.query_params.get("created") }} initial match(es).
+    </div>
+  {% endif %}
+  {% if request.query_params.get("evaluated") %}
+    <div class="mb-4 text-sm bg-emerald-50 border border-emerald-200 text-emerald-800 rounded px-3 py-2">
+      Re-evaluated · {{ request.query_params.get("evaluated") }} new alert(s).
+    </div>
+  {% endif %}
+
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Active watches</div>
+      <div class="text-3xl font-semibold">{{ kpis.active }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Alerts today</div>
+      <div class="text-3xl font-semibold text-red-600">{{ kpis.today }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Awaiting your review</div>
+      <div class="text-3xl font-semibold">{{ kpis.awaiting }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Paused watches</div>
+      <div class="text-3xl font-semibold">{{ kpis.paused }}</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-6">
+
+    <!-- Inbox (spans 2 cols) -->
+    <div class="col-span-2 panel">
+      <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--line)">
+        <h2 class="font-semibold">Inbox</h2>
+        <div class="text-xs text-slate-500">Newest first</div>
+      </div>
+      <div>
+        {% for a in alerts %}
+          <div class="px-4 py-3 border-b {% if a.status == 'new' %}bg-red-50/40{% endif %}" style="border-color:var(--line)">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="font-semibold">
+                  <a class="hover:underline" href="/ui/business/{{ a.business_id }}">{{ a.name }}</a>
+                  <span class="text-slate-500 font-normal">· {{ a.city or '' }}{% if a.region %}, {{ a.region }}{% endif %}</span>
+                </div>
+                <div class="text-sm text-slate-600 mt-0.5">{{ a.reason }}</div>
+                <div class="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                  <span>Watch: {{ a.watch_name }}</span>
+                  {% if a.lead_class %}
+                    <span class="chip-{{ a.lead_class }} rounded px-1.5 py-0.5">{{ a.lead_class }} · {{ a.score }}</span>
+                  {% endif %}
+                  {% if a.status != 'new' %}
+                    <span class="text-slate-400">· {{ a.status }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="text-xs text-slate-500 whitespace-nowrap">{{ a.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+            </div>
+            {% if a.status == 'new' %}
+              <div class="mt-2 flex gap-2">
+                <a href="/ui/business/{{ a.business_id }}" class="text-xs bg-emerald-700 text-white rounded px-3 py-1.5 font-medium">Open Business 360</a>
+                <form method="post" action="/ui/panic/alerts/{{ a.id }}/ack" class="inline">
+                  <button class="text-xs border border-slate-300 rounded px-3 py-1.5">Acknowledge</button>
+                </form>
+                <form method="post" action="/ui/panic/alerts/{{ a.id }}/dismiss" class="inline">
+                  <button class="text-xs border border-slate-300 rounded px-3 py-1.5">Not a fit</button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="px-4 py-10 text-center text-slate-400 text-sm">
+            No alerts yet. Create a watch on the right and click <em>Run now</em>.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Right rail: watches + guardrails -->
+    <div class="space-y-6">
+      <div class="panel p-4">
+        <h2 class="font-semibold mb-3">Your watches</h2>
+        <div class="space-y-3">
+          {% for w in watches %}
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-medium truncate">{{ w.name }}</div>
+                <div class="text-xs text-slate-500 truncate">
+                  {{ w.category or 'any category' }}
+                  {% if w.city %} · {{ w.city }}{% endif %}
+                  {% if w.region %} · {{ w.region }}{% endif %}
+                  {% if w.min_score %} · score ≥ {{ w.min_score }}{% endif %}
+                  {% if w.lead_class_at_least %} · class ≥ {{ w.lead_class_at_least }}{% endif %}
+                </div>
+                {% if w.last_evaluated_at %}
+                  <div class="text-xs text-slate-400 mt-0.5">checked {{ w.last_evaluated_at.strftime("%Y-%m-%d %H:%M") }}</div>
+                {% endif %}
+              </div>
+              <div class="flex items-center gap-1">
+                <form method="post" action="/ui/panic/watches/{{ w.id }}/toggle">
+                  <button type="submit"
+                          title="{{ 'Pause' if w.enabled else 'Resume' }}"
+                          class="w-10 h-6 rounded-full flex items-center p-0.5
+                                 {% if w.enabled %}bg-emerald-600{% else %}bg-slate-300{% endif %}">
+                    <span class="w-5 h-5 bg-white rounded-full transform transition
+                                 {% if w.enabled %}translate-x-4{% endif %}"></span>
+                  </button>
+                </form>
+                <form method="post" action="/ui/panic/watches/{{ w.id }}/delete" onsubmit="return confirm('Delete this watch?');">
+                  <button class="text-xs text-slate-400 hover:text-red-600 px-1">×</button>
+                </form>
+              </div>
+            </div>
+          {% else %}
+            <div class="text-sm text-slate-400">No watches yet.</div>
+          {% endfor %}
+        </div>
+
+        <details class="mt-4">
+          <summary class="text-xs text-emerald-700 cursor-pointer select-none">New watch</summary>
+          <form method="post" action="/ui/panic/watches" class="mt-3 space-y-2">
+            <input name="name" placeholder="Name (e.g. Dentists NY)" required
+                   class="w-full text-sm border border-slate-300 rounded px-2 py-1.5">
+            <div class="grid grid-cols-2 gap-2">
+              <input name="region" placeholder="Region (e.g. NY)" class="text-sm border border-slate-300 rounded px-2 py-1.5">
+              <input name="city" placeholder="City" class="text-sm border border-slate-300 rounded px-2 py-1.5">
+            </div>
+            <input name="category" placeholder="Category" class="w-full text-sm border border-slate-300 rounded px-2 py-1.5">
+            <div class="grid grid-cols-2 gap-2">
+              <input name="min_score" type="number" placeholder="Min score" class="text-sm border border-slate-300 rounded px-2 py-1.5">
+              <select name="lead_class_at_least" class="text-sm border border-slate-300 rounded px-2 py-1.5">
+                <option value="">Any class</option>
+                {% for c in classes %}<option value="{{ c }}">≥ {{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <button class="w-full bg-emerald-700 text-white rounded px-3 py-1.5 text-sm font-medium">Create watch</button>
+          </form>
+        </details>
+      </div>
+
+      <div class="panel p-4 text-sm">
+        <h2 class="font-semibold mb-2">Guardrails</h2>
+        <p class="text-slate-600">
+          Alerts reach you only. Nothing is sent to a business without your
+          approval. A watch that keeps misfiring can be paused with the toggle.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

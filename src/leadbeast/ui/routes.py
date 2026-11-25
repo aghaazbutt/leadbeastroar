@@ -41,13 +41,38 @@ from leadbeast.db.models import (
     EvidenceEvent,
     LeadClass,
     Pack,
+    PanicAlert,
+    PanicAlertStatus,
+    PanicWatch,
     ScoreSnapshot,
 )
+from leadbeast.panic import evaluate_watch, evaluate_all_watches
 
 router = APIRouter(prefix="/ui", tags=["ui"])
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 _COOKIE = "lb_token"
+
+
+def _panic_unread() -> int:
+    # Jinja global invoked on every render; opens its own session.
+    from leadbeast.db.session import SessionLocal
+
+    try:
+        with SessionLocal() as s:
+            return int(
+                s.execute(
+                    select(func.count(PanicAlert.id)).where(
+                        PanicAlert.status == PanicAlertStatus.NEW
+                    )
+                ).scalar_one()
+                or 0
+            )
+    except Exception:
+        return 0
+
+
+_TEMPLATES.env.globals["panic_unread"] = _panic_unread
 
 
 def ui_auth(request: Request) -> None:
@@ -311,12 +336,196 @@ def campaigns_create(
 
 
 @router.get("/panic", response_class=HTMLResponse, dependencies=[UiAuthDep])
-def panic(request: Request) -> HTMLResponse:
+def panic(
+    request: Request, session: Annotated[Session, SessDep]
+) -> HTMLResponse:
+    watches = list(
+        session.execute(
+            select(PanicWatch).order_by(PanicWatch.enabled.desc(), PanicWatch.created_at.desc())
+        ).scalars()
+    )
+    alerts = list(
+        session.execute(
+            select(PanicAlert, Business, PanicWatch, ScoreSnapshot)
+            .join(Business, Business.id == PanicAlert.business_id)
+            .join(PanicWatch, PanicWatch.id == PanicAlert.watch_id)
+            .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+            .order_by(
+                # NEW alerts first, then by recency
+                (PanicAlert.status != PanicAlertStatus.NEW).asc(),
+                PanicAlert.created_at.desc(),
+            )
+            .limit(100)
+        ).all()
+    )
+
+    active = sum(1 for w in watches if w.enabled)
+    paused = sum(1 for w in watches if not w.enabled)
+    new_count = sum(1 for a, *_ in alerts if a.status == PanicAlertStatus.NEW)
+    today_count = sum(
+        1
+        for a, *_ in alerts
+        if a.status == PanicAlertStatus.NEW
+        and a.created_at.date() == datetime.now(UTC).date()
+    )
+
+    alert_items = []
+    for alert, biz, watch, snap in alerts:
+        alert_items.append(
+            {
+                "id": str(alert.id),
+                "business_id": str(biz.id),
+                "name": biz.name,
+                "city": biz.city,
+                "region": biz.region,
+                "category": biz.category,
+                "watch_name": watch.name,
+                "reason": alert.reason,
+                "status": alert.status.value,
+                "created_at": alert.created_at,
+                "score": snap.score if snap else None,
+                "lead_class": snap.lead_class.value if snap else None,
+            }
+        )
+
+    watch_items = [
+        {
+            "id": str(w.id),
+            "name": w.name,
+            "enabled": w.enabled,
+            "region": w.region,
+            "city": w.city,
+            "category": w.category,
+            "min_score": w.min_score,
+            "lead_class_at_least": w.lead_class_at_least.value if w.lead_class_at_least else None,
+            "last_evaluated_at": w.last_evaluated_at,
+        }
+        for w in watches
+    ]
+
     return _TEMPLATES.TemplateResponse(
         request,
-        "stub.html",
-        {"title": "Panic Alerts", "nav_active": "panic", "now": datetime.now(UTC)},
+        "panic.html",
+        {
+            "nav_active": "panic",
+            "alerts": alert_items,
+            "watches": watch_items,
+            "kpis": {
+                "active": active,
+                "paused": paused,
+                "today": today_count,
+                "awaiting": new_count,
+            },
+            "classes": [c.value for c in LeadClass],
+        },
     )
+
+
+@router.post("/panic/watches")
+def panic_watch_create(
+    session: Annotated[Session, SessDep],
+    name: Annotated[str, Form()],
+    city: Annotated[str | None, Form()] = None,
+    region: Annotated[str | None, Form()] = None,
+    category: Annotated[str | None, Form()] = None,
+    min_score: Annotated[str | None, Form()] = None,
+    lead_class_at_least: Annotated[str | None, Form()] = None,
+) -> RedirectResponse:
+    def _clean(v: str | None) -> str | None:
+        if v is None:
+            return None
+        s = v.strip()
+        return s or None
+
+    lc: LeadClass | None = None
+    lca = _clean(lead_class_at_least)
+    if lca:
+        try:
+            lc = LeadClass(lca)
+        except ValueError:
+            lc = None
+    ms: int | None = None
+    mss = _clean(min_score)
+    if mss:
+        try:
+            ms = int(mss)
+        except ValueError:
+            ms = None
+
+    watch = PanicWatch(
+        name=name.strip(),
+        enabled=True,
+        city=_clean(city),
+        region=_clean(region),
+        category=_clean(category),
+        min_score=ms,
+        lead_class_at_least=lc,
+    )
+    session.add(watch)
+    session.commit()
+    inserted = evaluate_watch(session, watch)
+    return RedirectResponse(url=f"/ui/panic?created={inserted}", status_code=303)
+
+
+@router.post("/panic/watches/{watch_id}/toggle")
+def panic_watch_toggle(
+    watch_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    w = session.get(PanicWatch, watch_id)
+    if w is None:
+        raise HTTPException(status_code=404, detail="watch not found")
+    w.enabled = not w.enabled
+    session.add(w)
+    session.commit()
+    return RedirectResponse(url="/ui/panic", status_code=303)
+
+
+@router.post("/panic/watches/{watch_id}/delete")
+def panic_watch_delete(
+    watch_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    w = session.get(PanicWatch, watch_id)
+    if w is None:
+        raise HTTPException(status_code=404, detail="watch not found")
+    # delete alerts first (no cascade declared)
+    session.execute(
+        PanicAlert.__table__.delete().where(PanicAlert.watch_id == watch_id)
+    )
+    session.delete(w)
+    session.commit()
+    return RedirectResponse(url="/ui/panic", status_code=303)
+
+
+@router.post("/panic/evaluate")
+def panic_evaluate(session: Annotated[Session, SessDep]) -> RedirectResponse:
+    inserted = evaluate_all_watches(session)
+    return RedirectResponse(url=f"/ui/panic?evaluated={inserted}", status_code=303)
+
+
+@router.post("/panic/alerts/{alert_id}/ack")
+def panic_alert_ack(
+    alert_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    a = session.get(PanicAlert, alert_id)
+    if a is None:
+        raise HTTPException(status_code=404, detail="alert not found")
+    a.status = PanicAlertStatus.ACKNOWLEDGED
+    session.add(a)
+    session.commit()
+    return RedirectResponse(url="/ui/panic", status_code=303)
+
+
+@router.post("/panic/alerts/{alert_id}/dismiss")
+def panic_alert_dismiss(
+    alert_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    a = session.get(PanicAlert, alert_id)
+    if a is None:
+        raise HTTPException(status_code=404, detail="alert not found")
+    a.status = PanicAlertStatus.DISMISSED
+    session.add(a)
+    session.commit()
+    return RedirectResponse(url="/ui/panic", status_code=303)
 
 
 @router.get("/map", response_class=HTMLResponse, dependencies=[UiAuthDep])
