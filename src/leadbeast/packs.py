@@ -209,6 +209,22 @@ async def seed_demo_scores(session: Session) -> int:
         ).scalars()
     )
     if not businesses:
+        # Back-fill evidence for already-scored businesses that have no
+        # evidence trail yet (e.g. older deploys scored before the
+        # evidence seeder existed). Cheap no-op once populated.
+        backfill = list(
+            session.execute(
+                select(Business, ScoreSnapshot.lead_class)
+                .join(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+                .outerjoin(EvidenceEvent, EvidenceEvent.business_id == Business.id)
+                .where(EvidenceEvent.id.is_(None))
+                .where(ScoreSnapshot.campaign_id == campaign.id)
+            ).all()
+        )
+        for biz, lc in backfill:
+            _seed_demo_evidence(session, biz, lc)
+        if backfill:
+            session.commit()
         return 0
 
     # Deterministic spread: ~25% A, ~25% B, ~25% C, ~25% D.
