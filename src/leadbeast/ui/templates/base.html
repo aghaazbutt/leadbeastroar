@@ -6,7 +6,13 @@
   <title>{% block title %}LeadBeast{% endblock %}</title>
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root { --bg: #faf9f5; --panel: #ffffff; --ink: #141413; --muted: #666; --line: #e8e6df; }
+    html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { background: var(--bg); color: var(--ink); }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
     .chip-A { background-color: #dcfce7; color: #166534; }
     .chip-B { background-color: #dbeafe; color: #1e40af; }
     .chip-C { background-color: #fef3c7; color: #92400e; }
@@ -16,8 +22,8 @@
     .chip-low { background-color: #fee2e2; color: #991b1b; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex">
-  <aside class="w-56 bg-white border-r border-slate-200 p-4 flex flex-col">
+<body class="min-h-screen flex">
+  <aside class="w-56 border-r p-4 flex flex-col" style="background:#ffffff;border-color:var(--line)">
     <div class="font-bold text-lg mb-6">LeadBeast</div>
 
     <div class="text-xs uppercase text-slate-400 mb-1 mt-2">Set up</div>

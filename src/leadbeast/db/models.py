@@ -87,6 +87,22 @@ class DraftStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class CallTaskStatus(str, enum.Enum):
+    QUEUED = "queued"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+
+
+class CallOutcome(str, enum.Enum):
+    CONNECTED = "connected"
+    VOICEMAIL = "voicemail"
+    NO_ANSWER = "no_answer"
+    CALLBACK = "callback"
+    REJECTED = "rejected"
+    WRONG_NUMBER = "wrong_number"
+
+
 class OutcomeKind(str, enum.Enum):
     REPLIED = "replied"
     MEETING_BOOKED = "meeting_booked"
@@ -354,6 +370,42 @@ class Outcome(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+# --- Dialer -------------------------------------------------------------
+
+
+class CallTask(Base):
+    __tablename__ = "call_task"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("business.id"), nullable=False, index=True
+    )
+    status: Mapped[CallTaskStatus] = mapped_column(
+        Enum(CallTaskStatus, name="call_task_status"),
+        nullable=False,
+        default=CallTaskStatus.QUEUED,
+        index=True,
+    )
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
+    outcome: Mapped[CallOutcome | None] = mapped_column(
+        Enum(CallOutcome, name="call_outcome"), nullable=True
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("business_id", name="uq_call_task_business"),
     )
 
 

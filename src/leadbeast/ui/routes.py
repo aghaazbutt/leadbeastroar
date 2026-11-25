@@ -32,6 +32,9 @@ from leadbeast.api.deps import db_session
 from leadbeast.config import get_settings
 from leadbeast.db.models import (
     Business,
+    CallOutcome,
+    CallTask,
+    CallTaskStatus,
     Campaign,
     Draft,
     DraftStatus,
@@ -396,9 +399,140 @@ def map_view(
 
 
 @router.get("/dialer", response_class=HTMLResponse, dependencies=[UiAuthDep])
-def dialer(request: Request) -> HTMLResponse:
+def dialer(
+    request: Request, session: Annotated[Session, SessDep]
+) -> HTMLResponse:
+    rows = session.execute(
+        select(CallTask, Business, ScoreSnapshot)
+        .join(Business, Business.id == CallTask.business_id)
+        .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+        .order_by(
+            # active tasks (queued/in_progress) first; completed last
+            CallTask.completed_at.asc().nullsfirst(),
+            CallTask.priority.desc(),
+            CallTask.created_at.asc(),
+        )
+    ).all()
+
+    tasks = []
+    counts = {s.value: 0 for s in CallTaskStatus}
+    for task, biz, snap in rows:
+        counts[task.status.value] += 1
+        tasks.append(
+            {
+                "id": str(task.id),
+                "name": biz.name,
+                "business_id": str(biz.id),
+                "phone": biz.phone,
+                "city": biz.city,
+                "category": biz.category,
+                "status": task.status.value,
+                "priority": task.priority,
+                "outcome": task.outcome.value if task.outcome else None,
+                "note": task.note,
+                "score": snap.score if snap else None,
+                "lead_class": snap.lead_class.value if snap else None,
+                "updated_at": task.updated_at,
+            }
+        )
+
+    unqueued_with_phone = int(
+        session.execute(
+            select(func.count(Business.id))
+            .outerjoin(CallTask, CallTask.business_id == Business.id)
+            .where(Business.phone.is_not(None))
+            .where(CallTask.id.is_(None))
+        ).scalar_one()
+        or 0
+    )
+
     return _TEMPLATES.TemplateResponse(
         request,
-        "stub.html",
-        {"title": "Dialer Board", "nav_active": "dialer", "now": datetime.now(UTC)},
+        "dialer.html",
+        {
+            "nav_active": "dialer",
+            "tasks": tasks,
+            "counts": counts,
+            "unqueued_with_phone": unqueued_with_phone,
+            "outcomes": [o.value for o in CallOutcome],
+        },
     )
+
+
+@router.post("/dialer/queue")
+def dialer_queue(
+    session: Annotated[Session, SessDep],
+    limit: Annotated[int, Form()] = 20,
+) -> RedirectResponse:
+    """Enqueue up to `limit` top-scored businesses with a phone that aren't already queued."""
+    stmt = (
+        select(Business.id, func.coalesce(ScoreSnapshot.score, 0).label("priority"))
+        .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+        .outerjoin(CallTask, CallTask.business_id == Business.id)
+        .where(Business.phone.is_not(None))
+        .where(CallTask.id.is_(None))
+        .order_by(func.coalesce(ScoreSnapshot.score, 0).desc(), Business.created_at.asc())
+        .limit(limit)
+    )
+    added = 0
+    for business_id, priority in session.execute(stmt).all():
+        session.add(
+            CallTask(business_id=business_id, priority=int(priority), status=CallTaskStatus.QUEUED)
+        )
+        added += 1
+    session.commit()
+    return RedirectResponse(url=f"/ui/dialer?added={added}", status_code=303)
+
+
+@router.post("/dialer/{task_id}/start")
+def dialer_start(
+    task_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    task = session.get(CallTask, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="task not found")
+    task.status = CallTaskStatus.IN_PROGRESS
+    session.add(task)
+    session.commit()
+    return RedirectResponse(url="/ui/dialer", status_code=303)
+
+
+@router.post("/dialer/{task_id}/outcome")
+def dialer_outcome(
+    task_id: uuid.UUID,
+    outcome: Annotated[str, Form()],
+    session: Annotated[Session, SessDep],
+    note: Annotated[str | None, Form()] = None,
+) -> RedirectResponse:
+    task = session.get(CallTask, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="task not found")
+    try:
+        parsed = CallOutcome(outcome)
+    except ValueError:
+        return RedirectResponse(url="/ui/dialer?err=outcome", status_code=303)
+    task.outcome = parsed
+    task.note = (note or "").strip() or None
+    task.completed_at = datetime.now(UTC)
+    task.status = (
+        CallTaskStatus.COMPLETED
+        if parsed != CallOutcome.CALLBACK
+        else CallTaskStatus.QUEUED
+    )
+    session.add(task)
+    session.commit()
+    return RedirectResponse(url="/ui/dialer", status_code=303)
+
+
+@router.post("/dialer/{task_id}/skip")
+def dialer_skip(
+    task_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    task = session.get(CallTask, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="task not found")
+    task.status = CallTaskStatus.SKIPPED
+    task.completed_at = datetime.now(UTC)
+    session.add(task)
+    session.commit()
+    return RedirectResponse(url="/ui/dialer", status_code=303)
