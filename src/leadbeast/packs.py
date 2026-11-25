@@ -211,9 +211,43 @@ async def seed_demo_scores(session: Session) -> int:
         ).scalars()
     )
     if not businesses:
-        # Back-fill evidence for already-scored businesses that have no
-        # evidence trail yet (e.g. older deploys scored before the
-        # evidence seeder existed). Cheap no-op once populated.
+        # Back-fill evidence for already-scored businesses. Two cases:
+        # (a) no evidence at all (older deploys); (b) pathological evidence
+        # from an older auto-detector pass against fake .example URLs where
+        # every row is UNKNOWN/NOT_DETECTED. Wipe case (b) first.
+        state_distribution = {
+            r[0]: r[1]
+            for r in session.execute(
+                select(EvidenceEvent.state, func.count(EvidenceEvent.id))
+                .join(
+                    ScoreSnapshot, ScoreSnapshot.business_id == EvidenceEvent.business_id
+                )
+                .where(ScoreSnapshot.campaign_id == campaign.id)
+                .group_by(EvidenceEvent.state)
+            ).all()
+        }
+        meaningful_states = {
+            EvidenceState.OBSERVED_YES,
+            EvidenceState.OBSERVED_NO,
+            EvidenceState.INFERRED,
+            EvidenceState.CONFLICTING,
+            EvidenceState.MANUALLY_VERIFIED,
+        }
+        if state_distribution and not (
+            meaningful_states & set(state_distribution.keys())
+        ):
+            # Only UNKNOWN / NOT_DETECTED — wipe demo campaign's evidence.
+            session.execute(
+                EvidenceEvent.__table__.delete().where(
+                    EvidenceEvent.business_id.in_(
+                        select(ScoreSnapshot.business_id).where(
+                            ScoreSnapshot.campaign_id == campaign.id
+                        )
+                    )
+                )
+            )
+            session.commit()
+
         backfill = list(
             session.execute(
                 select(Business, ScoreSnapshot.lead_class)
