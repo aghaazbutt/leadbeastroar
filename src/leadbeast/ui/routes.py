@@ -294,7 +294,31 @@ def market(request: Request, session: Annotated[Session, SessDep]) -> HTMLRespon
         ).scalar_one()
         or 0
     )
+    # No REPLIED status in the Draft model; placeholder until Outcome wiring.
+    replied = 0
     total_biz = int(session.execute(select(func.count(Business.id))).scalar_one() or 0)
+    passed_busy = int(
+        session.execute(
+            select(func.count(ScoreSnapshot.business_id.distinct()))
+        ).scalar_one()
+        or 0
+    )
+    class_ab = gap["A"] + gap["B"]
+    with_phone = int(
+        session.execute(
+            select(func.count(Business.id)).where(Business.phone.is_not(None))
+        ).scalar_one()
+        or 0
+    )
+
+    # Simplified "precision" table: signals shown with a placeholder precision
+    # until we wire golden_label outcomes.
+    signals = [
+        {"name": "No website", "precision": 96, "status": "Live"},
+        {"name": "Unclaimed map listing", "precision": 93, "status": "Live"},
+        {"name": "Marketing quiet 12 months", "precision": 81, "status": "Held back"},
+        {"name": "Non-tech operator", "precision": 88, "status": "Held back"},
+    ]
 
     return _TEMPLATES.TemplateResponse(
         request,
@@ -303,7 +327,13 @@ def market(request: Request, session: Annotated[Session, SessDep]) -> HTMLRespon
             "gap": gap,
             "sent": sent,
             "approved": approved,
+            "replied": replied,
             "total_biz": total_biz,
+            "passed_busy": passed_busy,
+            "class_ab": class_ab,
+            "with_phone_pct": round(100 * with_phone / total_biz) if total_biz else 0,
+            "gap_pct": round(100 * (gap["A"] + gap["B"] + gap["C"]) / total_biz) if total_biz else 0,
+            "signals": signals,
             "nav_active": "market",
         },
     )

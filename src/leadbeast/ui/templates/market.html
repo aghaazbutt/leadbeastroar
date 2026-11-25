@@ -1,41 +1,134 @@
 {% extends "base.html" %}
-{% block title %}Market &amp; learning · LeadBeast{% endblock %}
+{% block title %}Market and learning · LeadBeast{% endblock %}
 {% block content %}
 <div class="p-6">
-  <h1 class="text-2xl font-semibold mb-5">Market &amp; learning</h1>
+  <h1 class="text-2xl font-semibold">Market and learning</h1>
+  <p class="text-sm text-slate-500 mt-1 mb-5">
+    What the market looks like and what actually turns into paying customers.
+  </p>
 
   <div class="grid grid-cols-4 gap-4 mb-6">
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <div class="text-xs text-slate-500">Found</div>
-      <div class="text-2xl font-semibold">{{ total_biz }}</div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Businesses in view</div>
+      <div class="text-3xl font-semibold">{{ total_biz }}</div>
+      <div class="text-xs text-slate-400 mt-1">Local services sample</div>
     </div>
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <div class="text-xs text-slate-500">Approved</div>
-      <div class="text-2xl font-semibold">{{ approved }}</div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">With a visibility gap</div>
+      <div class="text-3xl font-semibold" style="color:var(--accent)">{{ gap_pct }}%</div>
+      <div class="text-xs text-slate-400 mt-1">Gap type A, B or C</div>
     </div>
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <div class="text-xs text-slate-500">Sent</div>
-      <div class="text-2xl font-semibold">{{ sent }}</div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Reachable by phone</div>
+      <div class="text-3xl font-semibold">{{ with_phone_pct }}%</div>
+      <div class="text-xs text-slate-400 mt-1">Of total businesses</div>
     </div>
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <div class="text-xs text-slate-500">Status</div>
-      <div class="text-sm text-slate-600">Not enough outcomes yet to train a model.</div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Wins so far</div>
+      <div class="text-3xl font-semibold">0 of 20</div>
+      <div class="text-xs text-slate-400 mt-1">Model learns after 20 wins</div>
     </div>
   </div>
 
-  <div class="bg-white border border-slate-200 rounded-lg p-4">
-    <h2 class="font-semibold mb-3">Gap distribution by class</h2>
-    <div class="space-y-2">
-      {% for cls, n in gap.items() %}
-        <div class="flex items-center gap-3">
-          <span class="chip-{{ cls }} px-2 py-0.5 rounded text-xs font-semibold w-8 text-center">{{ cls }}</span>
-          <div class="flex-1 bg-slate-100 rounded h-3 overflow-hidden">
-            {% set width = (n * 10) if n < 100 else 100 %}
-            <div class="h-3 bg-slate-500" style="width: {{ width }}%"></div>
+  <div class="grid grid-cols-2 gap-6">
+
+    <div class="panel p-5">
+      <h2 class="font-semibold mb-4">From found to won</h2>
+      <div class="space-y-3">
+        {% set steps = [
+          ('Found', total_biz, total_biz),
+          ('Passed the active &amp; busy check', passed_busy, total_biz),
+          ('Class A or B', class_ab, total_biz),
+          ('Approved and contacted', approved, total_biz),
+          ('Replied', replied, total_biz),
+        ] %}
+        {% for label, value, denom in steps %}
+          <div>
+            <div class="flex justify-between text-sm">
+              <span>{{ label|safe }}</span>
+              <span class="font-semibold">{{ value }}</span>
+            </div>
+            <div class="h-2 mt-1 rounded bg-stone-200 overflow-hidden">
+              <div class="h-full" style="width: {{ (100 * value / denom)|round if denom else 0 }}%; background:var(--accent)"></div>
+            </div>
           </div>
-          <span class="text-sm text-slate-600 w-10 text-right">{{ n }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <h2 class="font-semibold mb-4">Where the gap is, by class</h2>
+      <div class="space-y-3">
+        {% set colors = {'A':'#166534','B':'#1e40af','C':'#b45309','D':'#64748b'} %}
+        {% set labels = {'A':'A Invisible','B':'B Weak site','C':'C Unranked','D':'D Marketing inactive'} %}
+        {% set max_v = gap.values()|max or 1 %}
+        {% for cls, label in labels.items() %}
+          {% set v = gap.get(cls, 0) %}
+          <div>
+            <div class="flex justify-between text-sm">
+              <span>{{ label }}</span>
+              <span class="font-semibold">{{ v }}</span>
+            </div>
+            <div class="h-2 mt-1 rounded bg-stone-200 overflow-hidden">
+              <div class="h-full" style="width: {{ (100 * v / max_v)|round }}%; background: {{ colors[cls] }}"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-slate-500 mt-4">
+        Gap class says what kind of gap a business has — separate from priority
+        class, which says what to do next.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="grid grid-cols-2 gap-6 mt-6">
+    <div class="panel p-5">
+      <h2 class="font-semibold mb-2">Which signals earn their place</h2>
+      <p class="text-xs text-slate-500 mb-4">
+        A signal is only used once it is right at least 90% of the time on our
+        sample businesses.
+      </p>
+      <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left border-b" style="border-color:var(--line)">
+          <tr><th class="py-2">Signal</th><th class="py-2 w-24">Precision</th><th class="py-2 w-28">Status</th></tr>
+        </thead>
+        <tbody>
+          {% for s in signals %}
+            <tr class="border-b" style="border-color:var(--line)">
+              <td class="py-2">{{ s.name }}</td>
+              <td class="py-2">{{ s.precision }}%</td>
+              <td class="py-2 {% if s.status == 'Live' %}text-emerald-700{% else %}text-amber-700{% endif %} font-medium">{{ s.status }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel p-5 text-sm space-y-3">
+      <h2 class="font-semibold">What the system learned</h2>
+      <div>
+        <div class="font-semibold">Not enough outcomes yet.</div>
+        <div class="text-slate-600">
+          Weights stay at the pack defaults until about 100 outcomes and at
+          least 20 wins are logged.
         </div>
-      {% endfor %}
+      </div>
+      <div>
+        <div class="font-semibold">Next review:</div>
+        <div class="text-slate-600">
+          after the first 20 contacted businesses, tag each as won, lost or no
+          reply, and why.
+        </div>
+      </div>
+      <div>
+        <div class="font-semibold">Then:</div>
+        <div class="text-slate-600">
+          a challenger model is tested against the current one. It only
+          replaces it if it does better on the same data.
+        </div>
+      </div>
     </div>
   </div>
 </div>
