@@ -154,13 +154,15 @@ def seed_demo_businesses(session: Session, *, csv_path: Path) -> int:
 
 
 async def seed_demo_scores(session: Session) -> int:
-    """Run detect + score for any demo-campaign business that isn't scored yet.
+    """Create a varied demo score distribution so the UI isn't all one class.
 
-    Returns the number of businesses that got a fresh ScoreSnapshot. Safe to
-    call on every boot — PipelineRun idempotency keys stop repeat work."""
-    import uuid as _uuid
+    The seeded businesses use `.example` URLs that real detectors can't reach,
+    so a pure detect+score pass lands everything in Class D and makes the UI
+    look broken. We hand-craft a realistic spread (some A, B, C, D) using
+    deterministic positions in the business list — no fake detector run.
 
-    from leadbeast.pipeline.stages import detect_stage, score_business
+    Safe on every boot: existing ScoreSnapshots are skipped."""
+    from leadbeast.db.models import Confidence, LeadClass
 
     campaign = session.execute(
         select(Campaign).where(Campaign.name == DEMO_CAMPAIGN_NAME)
@@ -168,31 +170,54 @@ async def seed_demo_scores(session: Session) -> int:
     if campaign is None:
         return 0
 
-    biz_ids = list(
+    businesses = list(
         session.execute(
-            select(Business.id)
+            select(Business)
             .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
             .where(ScoreSnapshot.id.is_(None))
+            .order_by(Business.name.asc())
             .limit(50)
         ).scalars()
     )
-    if not biz_ids:
+    if not businesses:
         return 0
 
+    # Deterministic spread: ~25% A, ~25% B, ~25% C, ~25% D.
+    spread = [
+        (LeadClass.A, Confidence.HIGH, 82, {"need": 34, "ability": 24, "timing": 7, "reachability": 17}),
+        (LeadClass.A, Confidence.HIGH, 78, {"need": 32, "ability": 22, "timing": 8, "reachability": 16}),
+        (LeadClass.B, Confidence.MEDIUM, 66, {"need": 24, "ability": 20, "timing": 6, "reachability": 16}),
+        (LeadClass.B, Confidence.MEDIUM, 61, {"need": 22, "ability": 19, "timing": 5, "reachability": 15}),
+        (LeadClass.C, Confidence.MEDIUM, 54, {"need": 18, "ability": 17, "timing": 5, "reachability": 14}),
+        (LeadClass.C, Confidence.LOW, 47, {"need": 15, "ability": 15, "timing": 4, "reachability": 13}),
+        (LeadClass.D, Confidence.LOW, 36, {"need": 10, "ability": 12, "timing": 3, "reachability": 11}),
+        (LeadClass.D, Confidence.LOW, 28, {"need": 8, "ability": 10, "timing": 2, "reachability": 8}),
+    ]
+    reasons_by_class = {
+        LeadClass.A: ["Invisible: no website found", "Listing not claimed", "Phone reachable"],
+        LeadClass.B: ["Weak website presence", "Few reviews (<20)"],
+        LeadClass.C: ["Unranked in local pack", "Marketing signals quiet"],
+        LeadClass.D: ["Marketing inactive · low priority"],
+    }
+
     scored = 0
-    run_id = _uuid.uuid4()
-    for bid in biz_ids:
-        try:
-            await detect_stage(
-                session, business_id=bid, campaign_id=campaign.id, run_id=run_id
+    for i, biz in enumerate(businesses):
+        spec = spread[i % len(spread)]
+        lead_class, confidence, score, sub_scores = spec
+        session.add(
+            ScoreSnapshot(
+                business_id=biz.id,
+                campaign_id=campaign.id,
+                score=score,
+                lead_class=lead_class,
+                confidence=confidence,
+                sub_scores=sub_scores,
+                reasons=reasons_by_class[lead_class],
+                pack_version="demo/0.1.0",
+                evidence_hash="demo",
             )
-            snap = score_business(
-                session, business_id=bid, campaign_id=campaign.id, run_id=run_id
-            )
-            if snap is not None:
-                scored += 1
-        except Exception:
-            session.rollback()
-            continue
+        )
+        scored += 1
+
     session.commit()
     return scored
