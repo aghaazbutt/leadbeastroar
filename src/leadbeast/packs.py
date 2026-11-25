@@ -14,13 +14,24 @@ from __future__ import annotations
 
 import csv
 import hashlib
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from leadbeast.db.models import Business, Campaign, Pack, ScoreSnapshot, SourceRecord
+from leadbeast.db.models import (
+    Business,
+    Campaign,
+    Confidence,
+    EvidenceEvent,
+    EvidenceState,
+    LeadClass,
+    Pack,
+    ScoreSnapshot,
+    SourceRecord,
+)
 
 DEFAULT_PACKS: list[dict[str, object]] = [
     {
@@ -162,7 +173,6 @@ async def seed_demo_scores(session: Session) -> int:
     deterministic positions in the business list — no fake detector run.
 
     Safe on every boot: existing ScoreSnapshots are skipped."""
-    from leadbeast.db.models import Confidence, LeadClass
 
     campaign = session.execute(
         select(Campaign).where(Campaign.name == DEMO_CAMPAIGN_NAME)
@@ -176,9 +186,9 @@ async def seed_demo_scores(session: Session) -> int:
     existing_classes = {
         r[0]
         for r in session.execute(
-            select(ScoreSnapshot.lead_class.distinct()).where(
-                ScoreSnapshot.campaign_id == campaign.id
-            )
+            select(ScoreSnapshot.lead_class)
+            .where(ScoreSnapshot.campaign_id == campaign.id)
+            .distinct()
         ).all()
     }
     if len(existing_classes) == 1:
@@ -236,7 +246,106 @@ async def seed_demo_scores(session: Session) -> int:
                 evidence_hash="demo",
             )
         )
+        _seed_demo_evidence(session, biz, lead_class)
         scored += 1
 
     session.commit()
     return scored
+
+
+# Each class gets a different evidence story:
+#   A (Invisible)   : no website, listing not claimed, phone inferred
+#   B (Weak site)   : website present but no reviews, chatbot absent
+#   C (Unranked)    : present but low rank, few recent reviews
+#   D (Active)      : all signals green — poor fit, low priority
+_EVIDENCE_BY_CLASS: dict[LeadClass, list[tuple[str, EvidenceState, str, str | None]]] = {
+    LeadClass.A: [
+        ("own_website",          EvidenceState.NOT_DETECTED, "web_search", None),
+        ("map_listing_claimed",  EvidenceState.OBSERVED_NO,  "google_maps", None),
+        ("steady_customer_reviews", EvidenceState.OBSERVED_YES, "google_maps", None),
+        ("paid_ads_seen",        EvidenceState.NOT_DETECTED, "ad_library", None),
+        ("licence_active",       EvidenceState.OBSERVED_YES, "state_registry", None),
+        ("owner_direct_phone",   EvidenceState.INFERRED,     "listing_plus_licence", None),
+        ("google_rating",        EvidenceState.OBSERVED_YES, "google_profile", "4.6"),
+        ("franchise_or_chain",   EvidenceState.OBSERVED_NO,  "listing_scan", None),
+        ("schema_on_site",       EvidenceState.NOT_DETECTED, "web_crawl", None),
+        ("named_by_ai_chat",     EvidenceState.UNKNOWN,      "ai_probes", None),
+        ("named_in_ai_overview", EvidenceState.NOT_DETECTED, "google_aio", None),
+        ("staff_count",          EvidenceState.UNKNOWN,      "manual", None),
+    ],
+    LeadClass.B: [
+        ("own_website",          EvidenceState.OBSERVED_YES, "web_search", None),
+        ("map_listing_claimed",  EvidenceState.OBSERVED_YES, "google_maps", None),
+        ("steady_customer_reviews", EvidenceState.OBSERVED_NO, "google_maps", None),
+        ("paid_ads_seen",        EvidenceState.NOT_DETECTED, "ad_library", None),
+        ("licence_active",       EvidenceState.OBSERVED_YES, "state_registry", None),
+        ("owner_direct_phone",   EvidenceState.OBSERVED_YES, "listing", None),
+        ("google_rating",        EvidenceState.OBSERVED_YES, "google_profile", "3.7"),
+        ("site_last_updated",    EvidenceState.OBSERVED_NO,  "web_crawl", ">12mo"),
+        ("chatbot_present",      EvidenceState.NOT_DETECTED, "web_crawl", None),
+        ("schema_on_site",       EvidenceState.OBSERVED_NO,  "web_crawl", None),
+        ("mobile_friendly",      EvidenceState.CONFLICTING,  "lighthouse", None),
+        ("staff_count",          EvidenceState.INFERRED,     "job_boards", "5-9"),
+    ],
+    LeadClass.C: [
+        ("own_website",          EvidenceState.OBSERVED_YES, "web_search", None),
+        ("map_listing_claimed",  EvidenceState.OBSERVED_YES, "google_maps", None),
+        ("steady_customer_reviews", EvidenceState.OBSERVED_YES, "google_maps", None),
+        ("paid_ads_seen",        EvidenceState.OBSERVED_NO,  "ad_library", None),
+        ("licence_active",       EvidenceState.OBSERVED_YES, "state_registry", None),
+        ("owner_direct_phone",   EvidenceState.OBSERVED_YES, "listing", None),
+        ("google_rating",        EvidenceState.OBSERVED_YES, "google_profile", "4.2"),
+        ("local_pack_rank",      EvidenceState.OBSERVED_NO,  "serp", "not in top-3"),
+        ("recent_reviews_90d",   EvidenceState.OBSERVED_NO,  "google_maps", None),
+        ("schema_on_site",       EvidenceState.OBSERVED_YES, "web_crawl", None),
+        ("mobile_friendly",      EvidenceState.OBSERVED_YES, "lighthouse", None),
+        ("staff_count",          EvidenceState.INFERRED,     "job_boards", "10-25"),
+    ],
+    LeadClass.D: [
+        ("own_website",          EvidenceState.OBSERVED_YES, "web_search", None),
+        ("map_listing_claimed",  EvidenceState.OBSERVED_YES, "google_maps", None),
+        ("steady_customer_reviews", EvidenceState.OBSERVED_YES, "google_maps", None),
+        ("paid_ads_seen",        EvidenceState.OBSERVED_YES, "ad_library", None),
+        ("licence_active",       EvidenceState.OBSERVED_YES, "state_registry", None),
+        ("google_rating",        EvidenceState.OBSERVED_YES, "google_profile", "4.8"),
+        ("local_pack_rank",      EvidenceState.OBSERVED_YES, "serp", "top-3"),
+        ("schema_on_site",       EvidenceState.OBSERVED_YES, "web_crawl", None),
+        ("mobile_friendly",      EvidenceState.OBSERVED_YES, "lighthouse", None),
+        ("named_by_ai_chat",     EvidenceState.OBSERVED_YES, "ai_probes", None),
+        ("named_in_ai_overview", EvidenceState.OBSERVED_YES, "google_aio", None),
+        ("staff_count",          EvidenceState.MANUALLY_VERIFIED, "manual", "26-50"),
+    ],
+}
+
+
+def _seed_demo_evidence(
+    session: Session, biz: Business, lead_class: LeadClass
+) -> None:
+    """Attach a realistic evidence trail to a demo business.
+
+    Observed times are staggered so the Business 360 "Observed" column
+    reads like real detectors landed over the past 2 weeks."""
+    now = datetime.now(UTC)
+    rows = _EVIDENCE_BY_CLASS[lead_class]
+    for i, (signal, state, source, val_text) in enumerate(rows):
+        observed_at = now - timedelta(days=i % 14, hours=i % 23)
+        confidence = (
+            Confidence.HIGH
+            if state in (EvidenceState.OBSERVED_YES, EvidenceState.OBSERVED_NO, EvidenceState.MANUALLY_VERIFIED)
+            else Confidence.MEDIUM
+            if state in (EvidenceState.INFERRED, EvidenceState.CONFLICTING)
+            else Confidence.LOW
+        )
+        session.add(
+            EvidenceEvent(
+                business_id=biz.id,
+                signal=signal,
+                state=state,
+                value={"text": val_text} if val_text else None,
+                source_key=source,
+                detector_version="demo-0.1",
+                confidence=confidence,
+                ai_extracted=False,
+                observed_at=observed_at,
+            )
+        )
