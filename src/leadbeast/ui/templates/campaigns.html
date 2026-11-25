@@ -2,51 +2,163 @@
 {% block title %}Campaign Studio · LeadBeast{% endblock %}
 {% block content %}
 <div class="p-6">
-  <h1 class="text-2xl font-semibold mb-5">Campaign Studio</h1>
+  <h1 class="text-2xl font-semibold">Campaign Studio</h1>
+  <p class="text-sm text-slate-500 mt-1 mb-5">
+    Start with what you sell. LeadBeast works out who should buy it.
+  </p>
 
-  <div class="grid grid-cols-2 gap-6">
-    <form method="post" action="/ui/campaigns" class="bg-white border border-slate-200 rounded-lg p-5">
-      <h2 class="font-semibold mb-4">Start a new campaign</h2>
-      {% if request.query_params.get("err") == "pack" %}
-        <div class="mb-4 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2">
-          No pack available. Run <code>lb pack-seed</code> or restart the app so default packs are installed.
+  <div class="panel p-2 mb-6">
+    <div class="flex items-center">
+      {% set steps = [('1', 'Your offer'), ('2', 'Ideal customer'), ('3', 'Where to look'), ('4', 'Budget and rules')] %}
+      {% for num, label in steps %}
+        <div class="flex items-center flex-1 {% if not loop.first %}pl-2{% endif %}">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold
+                      {% if loop.first %}text-white{% else %}bg-stone-200 text-slate-600{% endif %}"
+               {% if loop.first %}style="background:var(--accent)"{% endif %}>{{ num }}</div>
+          <div class="ml-2 text-sm {% if loop.first %}font-semibold{% else %}text-slate-500{% endif %}">{{ label }}</div>
+          {% if not loop.last %}<div class="flex-1 h-px bg-stone-200 mx-3"></div>{% endif %}
         </div>
-      {% endif %}
-      <label class="block text-sm text-slate-600 mb-1">Name</label>
-      <input name="name" required class="w-full border border-slate-300 rounded px-3 py-2 mb-4" placeholder="Visibility Gap — Lahore Q4">
-
-      <label class="block text-sm text-slate-600 mb-1">Pack</label>
-      <select name="pack_key" {% if not packs %}disabled{% endif %} class="w-full border border-slate-300 rounded px-3 py-2 mb-4 disabled:bg-slate-100">
-        {% for p in packs %}
-          <option value="{{ p.key }}">{{ p.name }}</option>
-        {% else %}
-          <option value="">(no packs installed)</option>
-        {% endfor %}
-      </select>
-
-      <button class="bg-slate-900 text-white rounded px-4 py-2 font-medium">Create draft</button>
-      <div class="text-xs text-slate-400 mt-3">Step 2–4 (ideal customer, where to look, budget &amp; rules) available after draft creation.</div>
-    </form>
-
-    <div class="bg-white border border-slate-200 rounded-lg p-5">
-      <h2 class="font-semibold mb-4">Recent campaigns</h2>
-      <table class="w-full text-sm">
-        <thead class="text-slate-500 text-left border-b border-slate-200">
-          <tr><th class="py-1">Name</th><th class="py-1">Status</th><th class="py-1">Created</th></tr>
-        </thead>
-        <tbody>
-          {% for c in campaigns %}
-            <tr class="border-b border-slate-100">
-              <td class="py-1 font-medium">{{ c.name }}</td>
-              <td class="py-1">{{ c.status.value }}</td>
-              <td class="py-1 text-slate-500">{{ c.created_at.strftime("%Y-%m-%d") }}</td>
-            </tr>
-          {% else %}
-            <tr><td colspan="3" class="py-4 text-slate-400">No campaigns yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      {% endfor %}
     </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-6">
+
+    <div class="col-span-2 space-y-6">
+
+      <form method="post" action="/ui/campaigns" class="panel p-5">
+        <h2 class="font-semibold">Step 1. What are you selling?</h2>
+        <p class="text-sm text-slate-500 mt-1 mb-5">
+          Pick a ready offer or describe your own. The ideal customer follows from this.
+        </p>
+
+        {% if request.query_params.get("err") == "pack" %}
+          <div class="mb-4 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2">
+            No pack available. Restart the app so default packs are installed.
+          </div>
+        {% endif %}
+
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          {% for p in packs %}
+            <label class="border rounded-lg p-3 cursor-pointer hover:border-emerald-700 {% if loop.first %}border-emerald-700 bg-emerald-50/40{% else %}border-slate-200{% endif %}">
+              <input type="radio" name="pack_key" value="{{ p.key }}" {% if loop.first %}checked{% endif %} class="sr-only">
+              <div class="font-semibold">{{ p.name }}</div>
+              <div class="text-xs text-slate-500 mt-1">{{ p.offer_summary }}</div>
+              {% if loop.first %}<div class="text-xs text-emerald-700 font-medium mt-2">Selected</div>{% endif %}
+            </label>
+          {% else %}
+            <div class="col-span-3 text-sm text-slate-400">No packs installed yet.</div>
+          {% endfor %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Campaign name</label>
+            <input name="name" required placeholder="Visibility Gap — Lahore Q4"
+                   class="w-full border border-slate-300 rounded px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Area (free text)</label>
+            <input name="area" placeholder="New York State"
+                   class="w-full border border-slate-300 rounded px-3 py-2 text-sm">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <div class="text-xs text-slate-500 mb-1">Ideal customer size</div>
+          <div class="flex flex-wrap gap-2">
+            {% for label in ['1-25 people (default)', '5-150 people (second tier)', '150+ (custom)'] %}
+              <span class="text-xs rounded-full px-3 py-1 border
+                           {% if loop.first %}text-white border-transparent{% else %}bg-white text-slate-600 border-slate-200{% endif %}"
+                    {% if loop.first %}style="background:var(--accent)"{% endif %}>
+                {{ label }}
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <div class="text-xs text-slate-500 mb-1">Basic qualification (gate, not score)</div>
+          <div class="flex flex-wrap gap-2">
+            {% for label in ['Open for business', 'Not a franchise', 'License active', '20+ Google reviews', '3.5+ rating'] %}
+              <span class="text-xs rounded-full px-3 py-1 bg-white text-slate-700 border border-slate-200">{{ label }}</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-5 border-t" style="border-color:var(--line)">
+          <div class="text-xs text-slate-400">Step 1 of 4</div>
+          <div class="flex gap-2">
+            <button type="submit" formaction="/ui/campaigns?draft=1" class="btn-ghost">Save draft</button>
+            <button type="submit" class="btn-primary">Next: ideal customer</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="panel">
+        <div class="flex items-center justify-between px-5 py-3 border-b" style="border-color:var(--line)">
+          <h2 class="font-semibold">Recent campaigns</h2>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="text-slate-500 text-left border-b" style="border-color:var(--line)">
+            <tr>
+              <th class="py-2 pl-5">Name</th>
+              <th class="py-2">Status</th>
+              <th class="py-2 pr-5">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in campaigns %}
+              <tr class="border-b" style="border-color:var(--line)">
+                <td class="py-2 pl-5 font-medium">{{ c.name }}</td>
+                <td class="py-2">
+                  <span class="text-xs rounded px-2 py-0.5 bg-stone-100 text-slate-700">{{ c.status.value }}</span>
+                </td>
+                <td class="py-2 pr-5 text-slate-500">{{ c.created_at.strftime("%Y-%m-%d") }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="3" class="py-6 pl-5 text-slate-400">No campaigns yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <div class="space-y-4">
+      <div class="panel p-5 text-sm">
+        <h2 class="font-semibold mb-3">What this campaign will do</h2>
+        <ol class="space-y-1.5 list-decimal list-inside text-slate-700">
+          <li>Collect businesses from your chosen sources.</li>
+          <li>Drop the ones that look closed or inactive.</li>
+          <li>Audit visibility and score each business.</li>
+          <li>Find a contact and draft an opener.</li>
+          <li>Wait for your approval before anything is sent.</li>
+        </ol>
+      </div>
+
+      <div class="panel p-5 text-sm">
+        <h2 class="font-semibold mb-3">Planned running cost</h2>
+        <div class="space-y-1.5">
+          <div class="flex justify-between"><span class="text-slate-600">Server and tools</span><span class="font-medium">$5 to $10 / month</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">Free sources first</span><span class="font-medium">$0</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">Paid connector</span><span class="font-medium text-slate-400">Off</span></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">
+          The cost guard stops any paid source before it spends past your cap.
+        </p>
+      </div>
+
+      <div class="panel p-5 text-sm">
+        <h2 class="font-semibold mb-2">Safety defaults</h2>
+        <ul class="text-slate-600 space-y-1 list-disc list-inside">
+          <li>Nothing is sent without your approval.</li>
+          <li>Personal use only.</li>
+          <li>Do-not-contact list always applies.</li>
+        </ul>
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}
