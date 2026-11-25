@@ -2,47 +2,180 @@
 {% block title %}Opportunities · LeadBeast{% endblock %}
 {% block content %}
 <div class="p-6">
-  <div class="flex items-center justify-between mb-5">
-    <h1 class="text-2xl font-semibold">Opportunities</h1>
-    <div class="flex items-center gap-4">
-      <div class="bg-amber-100 text-amber-800 rounded px-3 py-1 text-sm font-medium">
-        Waiting for your approval: {{ pending_count }}
-      </div>
-      <a href="/ui/campaigns" class="text-sm text-slate-600 hover:underline">New campaign →</a>
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <h1 class="text-2xl font-semibold">Opportunities</h1>
+      <p class="text-sm text-slate-500 mt-1">Ranked by chance of paying. Sample data unless you've ingested your own.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/ui/campaigns" class="btn-ghost">New campaign</a>
+      <a href="/ui/panic" class="btn-ghost text-red-700 border-red-200">Panic alerts</a>
     </div>
   </div>
 
-  <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
-    <table class="w-full text-sm">
-      <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 text-left">
-        <tr>
-          <th class="py-2 px-3 w-10">Class</th>
-          <th class="py-2 px-3">Name</th>
-          <th class="py-2 px-3">City</th>
-          <th class="py-2 px-3 w-20">Score</th>
-          <th class="py-2 px-3 w-24">Confidence</th>
-          <th class="py-2 px-3">Website</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for o in opps %}
-          <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="window.location='/ui/business/{{ o.id }}'">
-            <td class="py-2 px-3">
-              {% if o.lead_class %}<span class="inline-block px-2 py-0.5 rounded text-xs font-semibold chip-{{ o.lead_class }}">{{ o.lead_class }}</span>{% else %}<span class="text-slate-300">—</span>{% endif %}
-            </td>
-            <td class="py-2 px-3 font-medium">{{ o.name }}</td>
-            <td class="py-2 px-3 text-slate-600">{{ o.city or "" }}</td>
-            <td class="py-2 px-3">{{ o.score if o.score is not none else "—" }}</td>
-            <td class="py-2 px-3">
-              {% if o.confidence %}<span class="inline-block px-2 py-0.5 rounded text-xs chip-{{ o.confidence }}">{{ o.confidence }}</span>{% endif %}
-            </td>
-            <td class="py-2 px-3 text-slate-500">{{ o.website or "" }}</td>
-          </tr>
-        {% else %}
-          <tr><td colspan="6" class="py-10 text-center text-slate-400">No opportunities yet. Ingest a CSV or run a campaign to get started.</td></tr>
+  <div class="grid grid-cols-5 gap-4 mb-6">
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Found</div>
+      <div class="text-3xl font-semibold">{{ kpis.found }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Scored</div>
+      <div class="text-3xl font-semibold">{{ kpis.scored }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Class A and B</div>
+      <div class="text-3xl font-semibold" style="color:var(--accent)">{{ kpis.class_ab }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Waiting your approval</div>
+      <div class="text-3xl font-semibold text-amber-700">{{ kpis.pending }}</div>
+    </div>
+    <div class="panel p-4">
+      <div class="text-xs text-slate-500">Showing</div>
+      <div class="text-3xl font-semibold">{{ opps|length }}</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-6">
+
+    <div class="col-span-2 panel">
+      <div class="flex items-center gap-1 px-4 py-3 border-b" style="border-color:var(--line)">
+        {% set tabs = [('ALL','All'), ('A','Class A'), ('B','Class B'), ('C','Class C'), ('D','Class D')] %}
+        {% for key, label in tabs %}
+          <a href="/ui/opportunities{% if key != 'ALL' %}?cls={{ key }}{% endif %}"
+             class="text-xs rounded-full px-3 py-1 border
+                    {% if active_class == key %}text-white border-transparent{% else %}bg-white text-slate-700 border-slate-200 hover:border-slate-400{% endif %}"
+             {% if active_class == key %}style="background:var(--accent)"{% endif %}>
+            {{ label }}
+          </a>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left border-b" style="border-color:var(--line)">
+          <tr>
+            <th class="py-2 pl-4">Business</th>
+            <th class="py-2 w-16">Class</th>
+            <th class="py-2 w-16">Score</th>
+            <th class="py-2">Gap and offer</th>
+            <th class="py-2 w-28">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in opps %}
+            <tr class="border-b hover:bg-stone-50 cursor-pointer" style="border-color:var(--line)" onclick="window.location='/ui/business/{{ o.id }}'">
+              <td class="py-2 pl-4">
+                <div class="font-semibold">{{ o.name }}</div>
+                <div class="text-xs text-slate-500">
+                  {{ o.city or '' }}{% if o.region %}, {{ o.region }}{% endif %}
+                  {% if o.category %} · {{ o.category }}{% endif %}
+                </div>
+              </td>
+              <td class="py-2">
+                {% if o.lead_class %}
+                  <span class="chip-{{ o.lead_class }} rounded-full px-2.5 py-0.5 text-xs font-semibold">{{ o.lead_class }}</span>
+                {% else %}
+                  <span class="text-slate-300">—</span>
+                {% endif %}
+              </td>
+              <td class="py-2 font-medium">{{ o.score if o.score is not none else '—' }}</td>
+              <td class="py-2 text-slate-600">
+                {% if o.website %}{{ o.website }}
+                {% else %}<span class="text-slate-400">No website</span>{% endif %}
+              </td>
+              <td class="py-2 text-xs">
+                {% if o.lead_class == 'A' %}
+                  <span class="text-emerald-700 font-medium">Ready to approve</span>
+                {% elif o.lead_class == 'B' %}
+                  <span class="text-slate-600">Needs contact</span>
+                {% elif o.lead_class == 'C' %}
+                  <span class="text-slate-500">Nurture</span>
+                {% elif o.lead_class == 'D' %}
+                  <span class="text-slate-400">Suppress</span>
+                {% else %}
+                  <span class="text-slate-400">Queued</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="py-10 text-center text-slate-400">
+              No opportunities yet. Ingest a CSV or run a campaign to get started.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="space-y-4">
+      {% if highlight %}
+        <div class="panel p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 class="font-semibold text-lg">{{ highlight.name }}</h2>
+              <div class="text-xs text-slate-500">
+                {{ highlight.city or '' }}{% if highlight.region %}, {{ highlight.region }}{% endif %}
+                {% if highlight.category %} · {{ highlight.category }}{% endif %}
+              </div>
+            </div>
+            {% if highlight.lead_class %}
+              <span class="chip-{{ highlight.lead_class }} rounded-full px-2.5 py-0.5 text-xs font-semibold">Class {{ highlight.lead_class }}</span>
+            {% endif %}
+          </div>
+
+          {% if highlight.score is not none %}
+            <div class="mt-4 flex items-end gap-2">
+              <div class="text-4xl font-semibold">{{ highlight.score }}</div>
+              <div class="text-xs text-slate-500 mb-1.5">of 100 · confidence {{ highlight.confidence or 'medium' }}</div>
+            </div>
+
+            {% if highlight.sub_scores %}
+              <div class="mt-4 space-y-2">
+                {% for label, v in highlight.sub_scores.items() %}
+                  <div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                      <span class="capitalize">{{ label.replace('_', ' ') }}</span>
+                      <span>{{ v }}</span>
+                    </div>
+                    <div class="h-1.5 rounded bg-stone-200 overflow-hidden">
+                      <div class="h-full" style="width: {{ v if v <= 100 else 100 }}%; background:var(--accent)"></div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if highlight.reasons %}
+              <div class="mt-4 p-3 rounded" style="background:var(--accent-soft)">
+                <div class="text-xs font-semibold mb-1" style="color:var(--accent)">Why it ranks here</div>
+                <div class="text-xs text-slate-700">
+                  {% if highlight.reasons is mapping %}
+                    {% for k, v in highlight.reasons.items() %}{{ v }}{% if not loop.last %} · {% endif %}{% endfor %}
+                  {% elif highlight.reasons is iterable and highlight.reasons is not string %}
+                    {{ highlight.reasons | join(' · ') }}
+                  {% else %}
+                    {{ highlight.reasons }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="mt-4 text-sm text-slate-500">Not scored yet.</div>
+          {% endif %}
+
+          <div class="mt-5 space-y-2">
+            <a href="/ui/business/{{ highlight.id }}" class="block w-full btn-primary text-center">Open Business 360</a>
+            {% if highlight.phone %}
+              <a href="tel:{{ highlight.phone }}" class="block w-full btn-ghost text-center">Call {{ highlight.phone }}</a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="panel p-4 text-sm">
+        <div class="font-semibold mb-1">Pack</div>
+        <div class="text-slate-600">Visibility Gap — audit and fix, 1 to 25 people.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}

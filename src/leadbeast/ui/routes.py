@@ -119,21 +119,43 @@ def logout() -> RedirectResponse:
 
 @router.get("/opportunities", response_class=HTMLResponse, dependencies=[UiAuthDep])
 def opportunities(
-    request: Request, session: Annotated[Session, SessDep]
+    request: Request,
+    session: Annotated[Session, SessDep],
+    cls: str | None = None,
 ) -> HTMLResponse:
-    rows = session.execute(
+    stmt = (
         select(Business, ScoreSnapshot)
-        .outerjoin(
-            ScoreSnapshot,
-            (ScoreSnapshot.business_id == Business.id),
-        )
+        .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
         .order_by(ScoreSnapshot.score.desc().nullslast(), Business.created_at.desc())
         .limit(100)
-    ).all()
+    )
+    valid = {"A", "B", "C", "D"}
+    if cls and cls.upper() in valid:
+        stmt = stmt.where(ScoreSnapshot.lead_class == LeadClass(cls.upper()))
+
+    rows = session.execute(stmt).all()
 
     pending_count = int(
         session.execute(
             select(func.count(Draft.id)).where(Draft.status == DraftStatus.PENDING)
+        ).scalar_one()
+        or 0
+    )
+
+    total_found = int(
+        session.execute(select(func.count(Business.id))).scalar_one() or 0
+    )
+    scored = int(
+        session.execute(
+            select(func.count(func.distinct(ScoreSnapshot.business_id)))
+        ).scalar_one()
+        or 0
+    )
+    class_ab = int(
+        session.execute(
+            select(func.count(ScoreSnapshot.id)).where(
+                ScoreSnapshot.lead_class.in_([LeadClass.A, LeadClass.B])
+            )
         ).scalar_one()
         or 0
     )
@@ -145,18 +167,33 @@ def opportunities(
                 "id": biz.id,
                 "name": biz.name,
                 "city": biz.city,
+                "region": biz.region,
+                "category": biz.category,
                 "website": biz.website,
+                "phone": biz.phone,
                 "score": snap.score if snap else None,
                 "lead_class": snap.lead_class.value if snap else None,
                 "confidence": snap.confidence.value if snap else None,
+                "sub_scores": snap.sub_scores if snap else None,
+                "reasons": snap.reasons if snap else None,
             }
         )
+
+    highlight = opps[0] if opps else None
 
     return _TEMPLATES.TemplateResponse(
         request,
         "opportunities.html",
         {
             "opps": opps,
+            "active_class": cls.upper() if cls and cls.upper() in valid else "ALL",
+            "kpis": {
+                "found": total_found,
+                "scored": scored,
+                "class_ab": class_ab,
+                "pending": pending_count,
+            },
+            "highlight": highlight,
             "pending_count": pending_count,
             "nav_active": "opportunities",
         },
