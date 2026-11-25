@@ -34,10 +34,10 @@
         <pre class="text-sm whitespace-pre-wrap bg-stone-50 border rounded p-3 mb-4" style="border-color:var(--line)">{{ draft.body }}</pre>
 
         <div class="flex gap-2">
-          <form method="post" action="/v1/drafts/{{ draft.id }}/approve" class="flex-1">
+          <form method="post" action="/ui/drafts/{{ draft.id }}/approve" class="flex-1">
             <button class="w-full btn-primary">Approve and queue</button>
           </form>
-          <form method="post" action="/v1/drafts/{{ draft.id }}/skip">
+          <form method="post" action="/ui/drafts/{{ draft.id }}/skip">
             <button class="btn-ghost">Skip</button>
           </form>
         </div>

@@ -37,7 +37,7 @@ from leadbeast.api.v1 import (
 from leadbeast.config import get_settings
 from leadbeast.db.session import SessionLocal
 from leadbeast.logging import configure_logging, get_logger
-from leadbeast.packs import seed_default_packs, seed_demo_businesses
+from leadbeast.packs import seed_default_packs, seed_demo_businesses, seed_demo_scores
 from leadbeast.ui import routes as ui_routes
 
 log = get_logger("app")
@@ -90,6 +90,17 @@ async def lifespan(app: FastAPI):
         log.info("packs.seeded", count=inserted_packs)
     if inserted_biz:
         log.info("demo_businesses.seeded", count=inserted_biz)
+
+    # Run detect + score for any unscored demo businesses so Opportunities
+    # / Business 360 / Map show real signals instead of empty states.
+    with SessionLocal() as session:
+        try:
+            scored = await seed_demo_scores(session)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("demo_scores.failed", error=str(exc))
+            scored = 0
+    if scored:
+        log.info("demo_scores.seeded", count=scored)
     yield
 
 

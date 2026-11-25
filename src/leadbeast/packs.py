@@ -20,7 +20,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from leadbeast.db.models import Business, Campaign, Pack, SourceRecord
+from leadbeast.db.models import Business, Campaign, Pack, ScoreSnapshot, SourceRecord
 
 DEFAULT_PACKS: list[dict[str, object]] = [
     {
@@ -151,3 +151,48 @@ def seed_demo_businesses(session: Session, *, csv_path: Path) -> int:
     if inserted:
         session.commit()
     return inserted
+
+
+async def seed_demo_scores(session: Session) -> int:
+    """Run detect + score for any demo-campaign business that isn't scored yet.
+
+    Returns the number of businesses that got a fresh ScoreSnapshot. Safe to
+    call on every boot — PipelineRun idempotency keys stop repeat work."""
+    import uuid as _uuid
+
+    from leadbeast.pipeline.stages import detect_stage, score_business
+
+    campaign = session.execute(
+        select(Campaign).where(Campaign.name == DEMO_CAMPAIGN_NAME)
+    ).scalar_one_or_none()
+    if campaign is None:
+        return 0
+
+    biz_ids = list(
+        session.execute(
+            select(Business.id)
+            .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+            .where(ScoreSnapshot.id.is_(None))
+            .limit(50)
+        ).scalars()
+    )
+    if not biz_ids:
+        return 0
+
+    scored = 0
+    run_id = _uuid.uuid4()
+    for bid in biz_ids:
+        try:
+            await detect_stage(
+                session, business_id=bid, campaign_id=campaign.id, run_id=run_id
+            )
+            snap = score_business(
+                session, business_id=bid, campaign_id=campaign.id, run_id=run_id
+            )
+            if snap is not None:
+                scored += 1
+        except Exception:
+            session.rollback()
+            continue
+    session.commit()
+    return scored

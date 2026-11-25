@@ -36,6 +36,15 @@
           <div class="mb-4 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2">
             No pack available. Restart the app so default packs are installed.
           </div>
+        {% elif request.query_params.get("err") == "duplicate" %}
+          <div class="mb-4 text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded px-3 py-2">
+            A campaign with that name already exists — pick a unique name.
+          </div>
+        {% elif request.query_params.get("created") %}
+          <div class="mb-4 text-sm bg-emerald-50 border border-emerald-200 text-emerald-800 rounded px-3 py-2">
+            Campaign created. Next, <a class="font-semibold underline" href="/ui/opportunities">open Opportunities</a>
+            to see leads score against your pack, or <a class="font-semibold underline" href="/ui/map">use Map targeting</a> to define an area.
+          </div>
         {% endif %}
 
         <div class="grid grid-cols-3 gap-3 mb-6">
@@ -65,11 +74,13 @@
         </div>
 
         <div class="mb-4">
-          <div class="text-xs text-slate-500 mb-1">Ideal customer size</div>
+          <div class="text-xs text-slate-500 mb-1">
+            Ideal customer size <span class="italic text-slate-400">(pack default · editable in a later step)</span>
+          </div>
           <div class="flex flex-wrap gap-2">
             {% for label in ['1-25 people (default)', '5-150 people (second tier)', '150+ (custom)'] %}
               <span class="text-xs rounded-full px-3 py-1 border
-                           {% if loop.first %}text-white border-transparent{% else %}bg-white text-slate-600 border-slate-200{% endif %}"
+                           {% if loop.first %}text-white border-transparent{% else %}bg-white text-slate-500 border-slate-200{% endif %}"
                     {% if loop.first %}style="background:var(--accent)"{% endif %}>
                 {{ label }}
               </span>
@@ -78,20 +89,21 @@
         </div>
 
         <div class="mb-6">
-          <div class="text-xs text-slate-500 mb-1">Basic qualification (gate, not score)</div>
+          <div class="text-xs text-slate-500 mb-1">
+            Basic qualification gate <span class="italic text-slate-400">(pack default · fails exclude, never score)</span>
+          </div>
           <div class="flex flex-wrap gap-2">
             {% for label in ['Open for business', 'Not a franchise', 'License active', '20+ Google reviews', '3.5+ rating'] %}
-              <span class="text-xs rounded-full px-3 py-1 bg-white text-slate-700 border border-slate-200">{{ label }}</span>
+              <span class="text-xs rounded-full px-3 py-1 bg-white text-slate-500 border border-slate-200">{{ label }}</span>
             {% endfor %}
           </div>
         </div>
 
         <div class="flex items-center justify-between pt-5 border-t" style="border-color:var(--line)">
-          <div class="text-xs text-slate-400">Step 1 of 4</div>
-          <div class="flex gap-2">
-            <button type="submit" formaction="/ui/campaigns?draft=1" class="btn-ghost">Save draft</button>
-            <button type="submit" class="btn-primary">Next: ideal customer</button>
+          <div class="text-xs text-slate-400">
+            Step 1 of 4 · steps 2–4 are configured per-campaign later (ideal customer, sources, budget).
           </div>
+          <button type="submit" class="btn-primary">Create campaign</button>
         </div>
       </form>
 

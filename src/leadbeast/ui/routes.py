@@ -393,10 +393,48 @@ def campaigns_create(
     pack = session.execute(select(Pack).where(Pack.key == pack_key)).scalar_one_or_none()
     if pack is None:
         return RedirectResponse(url="/ui/campaigns?err=pack", status_code=303)
+    existing = session.execute(
+        select(Campaign).where(Campaign.name == name)
+    ).scalar_one_or_none()
+    if existing is not None:
+        return RedirectResponse(url="/ui/campaigns?err=duplicate", status_code=303)
     c = Campaign(name=name, pack_id=pack.id)
     session.add(c)
     session.commit()
-    return RedirectResponse(url="/ui/campaigns", status_code=303)
+    return RedirectResponse(url=f"/ui/campaigns?created={c.id}", status_code=303)
+
+
+# --- Draft actions (UI form POST, cookie-auth) -------------------------
+
+
+@router.post("/drafts/{draft_id}/approve", dependencies=[UiAuthDep])
+def ui_draft_approve(
+    draft_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    from leadbeast.pipeline.stages import approve_draft
+
+    try:
+        d = approve_draft(session, draft_id=draft_id, approver_id=None, edited_body=None)
+        session.commit()
+    except ValueError as exc:
+        return RedirectResponse(url=f"/ui/approvals?err={exc}", status_code=303)
+    return RedirectResponse(
+        url=f"/ui/business/{d.business_id}?approved=1", status_code=303
+    )
+
+
+@router.post("/drafts/{draft_id}/skip", dependencies=[UiAuthDep])
+def ui_draft_skip(
+    draft_id: uuid.UUID, session: Annotated[Session, SessDep]
+) -> RedirectResponse:
+    d = session.get(Draft, draft_id)
+    if d is None:
+        raise HTTPException(status_code=404, detail="draft not found")
+    biz_id = d.business_id
+    d.status = DraftStatus.SKIPPED
+    session.add(d)
+    session.commit()
+    return RedirectResponse(url=f"/ui/business/{biz_id}?skipped=1", status_code=303)
 
 
 # --- Minimal stubs for remaining nav items -----------------------------
