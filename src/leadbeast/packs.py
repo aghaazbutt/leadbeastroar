@@ -25,6 +25,8 @@ from leadbeast.db.models import (
     Business,
     Campaign,
     Confidence,
+    Draft,
+    DraftStatus,
     EvidenceEvent,
     EvidenceState,
     LeadClass,
@@ -223,7 +225,24 @@ async def seed_demo_scores(session: Session) -> int:
         )
         for biz, lc in backfill:
             _seed_demo_evidence(session, biz, lc)
-        if backfill:
+        # Also back-fill a pending draft for Class A biz without one.
+        draft_backfill = list(
+            session.execute(
+                select(Business, ScoreSnapshot)
+                .join(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
+                .outerjoin(
+                    Draft,
+                    (Draft.business_id == Business.id)
+                    & (Draft.campaign_id == campaign.id),
+                )
+                .where(Draft.id.is_(None))
+                .where(ScoreSnapshot.campaign_id == campaign.id)
+                .where(ScoreSnapshot.lead_class == LeadClass.A)
+            ).all()
+        )
+        for biz, _snap in draft_backfill:
+            _seed_demo_draft(session, biz, campaign)
+        if backfill or draft_backfill:
             session.commit()
         return 0
 
@@ -263,10 +282,51 @@ async def seed_demo_scores(session: Session) -> int:
             )
         )
         _seed_demo_evidence(session, biz, lead_class)
+        if lead_class == LeadClass.A:
+            _seed_demo_draft(session, biz, campaign)
         scored += 1
 
     session.commit()
     return scored
+
+
+def _seed_demo_draft(session: Session, biz: Business, campaign: Campaign) -> None:
+    """Attach a plausible-looking pending draft to a Class A business.
+
+    Deterministic body so reruns don't create duplicates (checked via a
+    unique (business_id, campaign_id, status) lookup first)."""
+    exists = session.execute(
+        select(Draft).where(
+            Draft.business_id == biz.id,
+            Draft.campaign_id == campaign.id,
+            Draft.status == DraftStatus.PENDING,
+        )
+    ).scalar_one_or_none()
+    if exists is not None:
+        return
+
+    name_short = biz.name.split(" ")[0]
+    city = biz.city or "your area"
+    subject = f"Quick note about {biz.name}'s online visibility"
+    body = (
+        f"Hi {name_short} team,\n\n"
+        f"I was looking at how {biz.name} shows up when people in {city} "
+        f"search for your service. A few competitors appear on the local "
+        f"map pack and you don't, even with a similar footprint.\n\n"
+        f"I put together a one-page summary of what I found — want me to "
+        f"send it over?\n\n"
+        f"— Sent via LeadBeast (demo draft · nothing was actually mailed)"
+    )
+    session.add(
+        Draft(
+            business_id=biz.id,
+            campaign_id=campaign.id,
+            channel="email",
+            subject=subject,
+            body=body,
+            status=DraftStatus.PENDING,
+        )
+    )
 
 
 # Each class gets a different evidence story:

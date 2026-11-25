@@ -122,13 +122,30 @@ def opportunities(
     request: Request,
     session: Annotated[Session, SessDep],
     cls: str | None = None,
+    campaign: str | None = None,
 ) -> HTMLResponse:
+    campaigns = list(
+        session.execute(
+            select(Campaign).order_by(Campaign.created_at.desc())
+        ).scalars()
+    )
+
+    active_campaign: Campaign | None = None
+    if campaign:
+        try:
+            active_campaign = session.get(Campaign, uuid.UUID(campaign))
+        except (ValueError, TypeError):
+            active_campaign = None
+
     stmt = (
         select(Business, ScoreSnapshot)
         .outerjoin(ScoreSnapshot, ScoreSnapshot.business_id == Business.id)
         .order_by(ScoreSnapshot.score.desc().nullslast(), Business.created_at.desc())
         .limit(100)
     )
+    if active_campaign is not None:
+        # Only businesses that have been scored against this campaign.
+        stmt = stmt.where(ScoreSnapshot.campaign_id == active_campaign.id)
     valid = {"A", "B", "C", "D"}
     if cls and cls.upper() in valid:
         stmt = stmt.where(ScoreSnapshot.lead_class == LeadClass(cls.upper()))
@@ -195,6 +212,15 @@ def opportunities(
             },
             "highlight": highlight,
             "pending_count": pending_count,
+            "campaigns": [
+                {"id": str(c.id), "name": c.name, "status": c.status.value}
+                for c in campaigns
+            ],
+            "active_campaign": (
+                {"id": str(active_campaign.id), "name": active_campaign.name}
+                if active_campaign
+                else None
+            ),
             "nav_active": "opportunities",
         },
     )
@@ -401,7 +427,9 @@ def campaigns_create(
     c = Campaign(name=name, pack_id=pack.id)
     session.add(c)
     session.commit()
-    return RedirectResponse(url=f"/ui/campaigns?created={c.id}", status_code=303)
+    return RedirectResponse(
+        url=f"/ui/opportunities?campaign={c.id}&created=1", status_code=303
+    )
 
 
 # --- Draft actions (UI form POST, cookie-auth) -------------------------

@@ -5,13 +5,57 @@
   <div class="flex items-start justify-between mb-5">
     <div>
       <h1 class="text-2xl font-semibold">Opportunities</h1>
-      <p class="text-sm text-slate-500 mt-1">Ranked by chance of paying. Sample data unless you've ingested your own.</p>
+      <p class="text-sm text-slate-500 mt-1">
+        {% if active_campaign %}
+          Scoped to <span class="font-semibold text-slate-800">{{ active_campaign.name }}</span>.
+          <a href="/ui/opportunities" class="text-slate-500 underline">View all</a>.
+        {% else %}
+          Ranked by chance of paying. Showing all campaigns.
+        {% endif %}
+      </p>
     </div>
     <div class="flex items-center gap-2">
+      <form method="get" action="/ui/opportunities" class="flex gap-1">
+        <select name="campaign" onchange="this.form.submit()" class="text-sm border border-slate-300 rounded px-2 py-1.5">
+          <option value="">All campaigns</option>
+          {% for c in campaigns %}
+            <option value="{{ c.id }}" {% if active_campaign and c.id == active_campaign.id %}selected{% endif %}>
+              {{ c.name }} · {{ c.status }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
       <a href="/ui/campaigns" class="btn-ghost">New campaign</a>
       <a href="/ui/panic" class="btn-ghost text-red-700 border-red-200">Panic alerts</a>
     </div>
   </div>
+
+  {% if request.query_params.get("created") %}
+    <div class="mb-4 text-sm bg-emerald-50 border border-emerald-200 text-emerald-800 rounded px-3 py-2">
+      Campaign created. It's empty for now — add leads via
+      <code>lb ingest csv &lt;file&gt; "{{ active_campaign.name if active_campaign else 'Campaign' }}"</code>,
+      <code>lb ingest osm "{{ active_campaign.name if active_campaign else 'Campaign' }}" --lat … --lon …</code>,
+      or <a href="/ui/map" class="font-semibold underline">Map targeting</a>.
+    </div>
+  {% endif %}
+
+  {% if active_campaign and not opps %}
+    <div class="panel p-6 mb-6 text-sm">
+      <div class="font-semibold mb-1">No leads in this campaign yet.</div>
+      <div class="text-slate-600 mb-3">
+        The campaign exists but nothing has been ingested or scored against it.
+        Three ways to populate it:
+      </div>
+      <ul class="text-slate-700 space-y-1.5 ml-4 list-disc">
+        <li>CSV: <code class="bg-stone-100 px-1.5 py-0.5 rounded text-xs">lb ingest csv seeds/businesses.csv "{{ active_campaign.name }}"</code></li>
+        <li>OpenStreetMap: <code class="bg-stone-100 px-1.5 py-0.5 rounded text-xs">lb ingest osm "{{ active_campaign.name }}" --lat 45.52 --lon -122.68 --radius-m 5000</code></li>
+        <li>Map targeting: <a href="/ui/map" class="underline text-emerald-700">open the map</a>, pick a point, save as a dialer queue</li>
+      </ul>
+      <div class="text-xs text-slate-400 mt-3">
+        Or switch the selector at top-right back to "All campaigns" to see the pre-seeded demo data.
+      </div>
+    </div>
+  {% endif %}
 
   <div class="grid grid-cols-5 gap-4 mb-6">
     <div class="panel p-4">
