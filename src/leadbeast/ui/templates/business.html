@@ -1,82 +1,196 @@
 {% extends "base.html" %}
 {% block title %}{{ biz.name }} · LeadBeast{% endblock %}
 {% block content %}
-<div class="p-6 grid grid-cols-3 gap-6">
-  <div class="col-span-2">
-    <a href="/ui/opportunities" class="text-sm text-slate-500 hover:underline">← Back to Opportunities</a>
-    <h1 class="text-2xl font-semibold mt-2">{{ biz.name }}</h1>
-    <div class="text-slate-500 text-sm mb-6">
-      {{ biz.category or "" }}{% if biz.city %} · {{ biz.city }}{% endif %}
-      {% if biz.website %} · <a href="{{ biz.website }}" target="_blank" class="hover:underline">{{ biz.website }}</a>{% endif %}
-    </div>
+<div class="p-6">
+  <a href="/ui/opportunities" class="text-sm text-slate-500 hover:underline">← Back to Opportunities</a>
 
-    <div class="bg-white border border-slate-200 rounded-lg p-4 mb-6">
-      <h2 class="font-semibold mb-3">Evidence</h2>
-      <table class="w-full text-sm">
-        <thead class="text-slate-500 text-left border-b border-slate-200">
-          <tr>
-            <th class="py-1">Signal</th>
-            <th class="py-1">State</th>
-            <th class="py-1">Source</th>
-            <th class="py-1">Observed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for ev in evidence %}
-            <tr class="border-b border-slate-100">
-              <td class="py-1 font-medium">{{ ev.signal }}</td>
-              <td class="py-1">{{ ev.state.value }}</td>
-              <td class="py-1 text-slate-500">{{ ev.source_key }}{% if ev.detector_version %} v{{ ev.detector_version }}{% endif %}</td>
-              <td class="py-1 text-slate-500">{{ ev.observed_at.strftime("%Y-%m-%d %H:%M") }}</td>
-            </tr>
-          {% else %}
-            <tr><td colspan="4" class="py-4 text-slate-400">No evidence yet. Run the detect stage.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="flex items-start justify-between mt-3 mb-5">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-semibold">{{ biz.name }}</h1>
+        {% if snap %}
+          <span class="chip-{{ snap.lead_class.value }} rounded-full px-2.5 py-0.5 text-xs font-semibold">Class {{ snap.lead_class.value }}</span>
+        {% endif %}
+      </div>
+      <div class="text-sm text-slate-500 mt-1">
+        {% if biz.city %}{{ biz.city }}{% endif %}{% if biz.region %}, {{ biz.region }}{% endif %}
+        {% if biz.category %} · {{ biz.category }}{% endif %}
+        {% if biz.employee_count_est %} · {{ biz.employee_count_est }} people{% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-6">
+      {% if snap %}
+        <div class="text-center">
+          <div class="text-xs text-slate-500">Score</div>
+          <div class="text-3xl font-semibold">{{ snap.score }}</div>
+        </div>
+        <div class="text-center">
+          <div class="text-xs text-slate-500">Confidence</div>
+          <div class="font-medium">{{ snap.confidence.value }}</div>
+        </div>
+      {% endif %}
+      {% if biz.website %}
+        <a href="{{ biz.website }}" target="_blank" class="btn-ghost">Open website</a>
+      {% endif %}
     </div>
   </div>
 
-  <aside class="col-span-1">
-    <div class="bg-white border border-slate-200 rounded-lg p-4 mb-4">
-      <h2 class="font-semibold mb-2">Score</h2>
-      {% if snap %}
-        <div class="flex items-center gap-3 mb-2">
-          <div class="text-3xl font-bold">{{ snap.score }}</div>
-          <span class="chip-{{ snap.lead_class.value }} px-2 py-0.5 rounded text-sm font-semibold">{{ snap.lead_class.value }}</span>
-          <span class="chip-{{ snap.confidence.value }} px-2 py-0.5 rounded text-xs">{{ snap.confidence.value }}</span>
+  <div class="grid grid-cols-3 gap-6">
+
+    <div class="col-span-2 space-y-6">
+
+      <div class="panel">
+        <div class="flex items-center justify-between px-5 py-3 border-b" style="border-color:var(--line)">
+          <h2 class="font-semibold">Evidence</h2>
+          <span class="text-xs text-slate-500">Every claim shows its source and age</span>
         </div>
-        <div class="text-xs text-slate-500 mb-2">pack {{ snap.pack_version }}</div>
-        <div class="text-sm">
-          {% for sub, val in snap.sub_scores.items() %}
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-slate-600">{{ sub }}</span>
-              <span class="font-medium">{{ val }}</span>
-            </div>
-          {% endfor %}
+        <table class="w-full text-sm">
+          <thead class="text-slate-500 text-left border-b" style="border-color:var(--line)">
+            <tr>
+              <th class="py-2 pl-5">Signal</th>
+              <th class="py-2">State</th>
+              <th class="py-2">Source</th>
+              <th class="py-2 pr-5">Observed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in evidence %}
+              {% set state = ev.state.value %}
+              <tr class="border-b" style="border-color:var(--line)">
+                <td class="py-2 pl-5 font-medium">{{ ev.signal.replace('_', ' ') }}</td>
+                <td class="py-2">
+                  <span class="text-xs rounded px-2 py-0.5
+                    {% if state == 'observed_yes' or state == 'manually_verified' %}bg-emerald-100 text-emerald-800
+                    {% elif state == 'observed_no' %}bg-amber-100 text-amber-800
+                    {% elif state == 'inferred' %}bg-indigo-100 text-indigo-800
+                    {% elif state == 'conflicting' %}bg-red-100 text-red-800
+                    {% else %}bg-stone-200 text-slate-600{% endif %}">
+                    {{ state.replace('_', ' ') }}
+                  </span>
+                </td>
+                <td class="py-2 text-slate-600">{{ ev.source_key }}{% if ev.detector_version %} v{{ ev.detector_version }}{% endif %}</td>
+                <td class="py-2 pr-5 text-slate-500">{{ ev.observed_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="py-6 pl-5 text-slate-400">No evidence yet. Run the detect stage.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if snap and snap.sub_scores %}
+        <div class="panel p-5">
+          <h2 class="font-semibold mb-4">Sub-scores</h2>
+          <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+            {% for sub, val in snap.sub_scores.items() %}
+              <div>
+                <div class="flex justify-between text-sm">
+                  <span class="capitalize">{{ sub.replace('_', ' ') }}</span>
+                  <span class="font-semibold">{{ val }}</span>
+                </div>
+                <div class="h-1.5 mt-1 rounded bg-stone-200 overflow-hidden">
+                  <div class="h-full" style="width: {{ val if val <= 100 else 100 }}%; background:var(--accent)"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
         </div>
-      {% else %}
-        <div class="text-sm text-slate-400">No score yet.</div>
       {% endif %}
+
+      {% if snap and snap.reasons %}
+        <div class="panel p-5">
+          <h2 class="font-semibold mb-2">Why it ranks here</h2>
+          <div class="text-sm text-slate-700 space-y-1">
+            {% if snap.reasons is mapping %}
+              {% for k, v in snap.reasons.items() %}
+                <div>· {{ v }}</div>
+              {% endfor %}
+            {% elif snap.reasons is iterable and snap.reasons is not string %}
+              {% for v in snap.reasons %}
+                <div>· {{ v }}</div>
+              {% endfor %}
+            {% else %}
+              <div>{{ snap.reasons }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
     </div>
 
-    {% if pending_draft %}
-    <div class="bg-white border border-slate-200 rounded-lg p-4">
-      <h2 class="font-semibold mb-2">Pending outreach</h2>
-      <div class="text-xs text-slate-500 mb-1">Subject</div>
-      <div class="text-sm mb-3">{{ pending_draft.subject }}</div>
-      <div class="text-xs text-slate-500 mb-1">Body</div>
-      <pre class="text-xs whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded p-2 mb-3">{{ pending_draft.body }}</pre>
-      <div class="flex gap-2">
-        <form method="post" action="/v1/drafts/{{ pending_draft.id }}/approve" class="inline">
-          <button class="bg-slate-900 text-white rounded px-3 py-1 text-sm">Approve</button>
-        </form>
-        <form method="post" action="/v1/drafts/{{ pending_draft.id }}/skip" class="inline">
-          <button class="border border-slate-300 rounded px-3 py-1 text-sm">Skip</button>
-        </form>
+    <div class="space-y-4">
+
+      <div class="panel p-4">
+        <h2 class="font-semibold mb-2">Checks before outreach</h2>
+        <table class="w-full text-sm">
+          <tbody>
+            {% set checks = [
+              ('Active and busy check', biz.phone or biz.website),
+              ('Contact info works', biz.phone),
+              ('Not a franchise or chain', true),
+              ('Do-not-contact list', true),
+            ] %}
+            {% for label, passed in checks %}
+              <tr>
+                <td class="py-1 text-slate-600">{{ label }}</td>
+                <td class="py-1 text-right font-medium {% if passed %}text-emerald-700{% else %}text-amber-700{% endif %}">
+                  {{ 'Pass' if passed else 'Due' }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
+
+      <div class="panel p-4 text-sm space-y-2">
+        <h2 class="font-semibold">Contact</h2>
+        <div class="space-y-1">
+          {% if biz.phone %}
+            <div>
+              <span class="text-slate-500">Phone:</span>
+              <a href="tel:{{ biz.phone }}" class="text-slate-800 font-medium hover:underline">{{ biz.phone }}</a>
+            </div>
+          {% endif %}
+          {% if biz.email %}
+            <div>
+              <span class="text-slate-500">Email:</span>
+              <a href="mailto:{{ biz.email }}" class="text-slate-800 font-medium hover:underline">{{ biz.email }}</a>
+            </div>
+          {% endif %}
+          {% if biz.address %}
+            <div class="text-slate-600">{{ biz.address }}</div>
+          {% endif %}
+          {% if not biz.phone and not biz.email and not biz.address %}
+            <div class="text-slate-400">No contact info yet.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if pending_draft %}
+        <div class="panel p-4">
+          <h2 class="font-semibold mb-2">Pending outreach</h2>
+          <div class="text-xs text-slate-500 mb-1">Subject</div>
+          <div class="text-sm font-medium mb-2">{{ pending_draft.subject }}</div>
+          <div class="text-xs text-slate-500 mb-1">Body</div>
+          <pre class="text-xs whitespace-pre-wrap bg-stone-50 border rounded p-2 mb-3" style="border-color:var(--line)">{{ pending_draft.body }}</pre>
+          <div class="flex gap-2">
+            <form method="post" action="/v1/drafts/{{ pending_draft.id }}/approve" class="flex-1">
+              <button class="w-full btn-primary">Approve and queue</button>
+            </form>
+            <form method="post" action="/v1/drafts/{{ pending_draft.id }}/skip">
+              <button class="btn-ghost">Skip</button>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <div class="panel p-4 text-sm">
+          <h2 class="font-semibold mb-1">Outreach</h2>
+          <div class="text-slate-500">No draft yet. A draft is generated after approving the lead.</div>
+        </div>
+      {% endif %}
+
     </div>
-    {% endif %}
-  </aside>
+
+  </div>
 </div>
 {% endblock %}
